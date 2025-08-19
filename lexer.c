@@ -1,15 +1,27 @@
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include "utf8.c"
 #include "common.h"
 
 typedef enum {
-    PREP_INCLUDE
+    UNKNOWN_TOKEN,
+    PREP_INCLUDE, HEADER_NAME,
+    WHITESPACE,
+    S_CHAR_SEQ,
+    KEYWORD,
+    SEMICOLON,
+    NUM_LITERAL,
+    OPEN_PAREN, CLOSE_PAREN,
+    OPEN_CURLY, CLOSE_CURLY,
+    IDENTIFIER,
+    COUNT_TOKEN,
 } TokenType;
 
 typedef struct {
     TokenType type;
+    Span span;
+
     union {
 
     };
@@ -19,11 +31,6 @@ typedef struct {
     Token *data;
     size_t size;
 } TokenMem;
-
-typedef struct {
-    rune *ptr;
-    size_t size;
-} String;
 
 #define TOKEN_MEM_MAX 64 * 1024
 TokenMem *token_mem_new() {
@@ -45,46 +52,31 @@ TokenMem *token_mem_new() {
 }
 
 typedef struct {
-    unsigned char *src;
-    size_t srcsize;
-    size_t pos;
-    TokenMem *outmem;
+    Span srcspan;
+    byte *pos;
     boolean eof;
 } LexerState;
 
-// rune read(LexerState *st) {
-//     int rsz;
-//     rune r = read_rune(st->src + st->pos, &rsz);
-//
-//     if ((st->pos += rsz) >= st->srcsize) {
-//         st->eof = true;
-//     }
-//
-//     return r;
-// }
-
 char read(LexerState *st) {
-    char c = *(st->src + st->pos);
-
-    if (++st->pos >= st->srcsize) {
+    if (st->pos >= st->srcspan.end) {
         st->eof = true;
+        return 0;
     }
 
-    return c;
+    return *st->pos++;
 }
 
-LexerState *lexer_new(unsigned char *src, size_t srcsize, TokenMem *outmem) {
+LexerState *lexer_new(byte *src, size_t srcsize) {
     LexerState *st = (LexerState *) malloc(sizeof(LexerState));
 
     if (st == NULL) {
         return NULL;
     }
 
-    st->src = src;
-    st->srcsize = srcsize;
-    st->outmem = outmem;
+    st->srcspan.ptr = src;
+    st->srcspan.end = src + srcsize;
+    st->pos = src;
     st->eof = false;
-    st->pos = 0;
 
     return st;
 }
@@ -95,69 +87,154 @@ static char *prep_directives[] = {
 
 #define PREP_DIRECTIVE_SIZE (sizeof(prep_directives) / sizeof(prep_directives[0]))
 
+static char *lang_keywords[] = {
+    "auto", "break", "case", "char", "const", "continue", "default", "do", "double",
+    "else", "enum", "extern", "float", "for", "goto", "if", "inline", "int", "long",
+    "register", "restrict", "return", "short", "signed", "sizeof", "static", "struct",
+    "switch", "typedef", "union", "unsigned", "void", "volatile", "while", "_Bool", "_Complex", "_Imaginary"
+};
+
+#define LANG_KEYWORD_SIZE (sizeof(lang_keywords) / sizeof(lang_keywords[0]))
+
+
 void lexer_free(LexerState *st) {
     free(st);
 }
 
+static Token tokenout[1024];
 
-#define WH_BUF_SIZE 512
-static char tempbuf[WH_BUF_SIZE];
+Span read_until(LexerState *st, int (*cmp) (int));
+Span read_spaces(LexerState *st);
+Span read_until_after_inc(LexerState *st, char c);
+Span read_until_char_inc(LexerState *st, char c);
+int isid(int c);
+int notid(int c);
+int notdigit(int c);
 
-int tokenize(unsigned char *buf, size_t bufsize, TokenMem *outmem) {
-    char c;
-    size_t i;
-    int ti;
+int tokenize(byte *buf, size_t bufsize) {
+    int i;
+    Token *tokenp = tokenout;
 
-    LexerState *lex = lexer_new(buf, bufsize, outmem);
+    LexerState *lex = lexer_new(buf, bufsize);
 
     while (!lex->eof) {
-        c = read(lex);
+        char c = read(lex);
 
         if (c == '#') {
-            i = 0;
-            while (!lex->eof && !isspace(c = read(lex))) { // TODO: Unread the space and save
-                tempbuf[i++] = c;
+            Span kw = read_until(lex, isspace);
+            i = binsearch(kw, prep_directives, PREP_DIRECTIVE_SIZE);
+
+            if (i >= 0) {
+                *tokenp++ = (Token) {.type = PREP_INCLUDE, .span = kw}; // TODO: Match directives with type
             }
+        } if (c == '<') {
+            lex->pos--;
+            *tokenp++ = (Token) {.type = HEADER_NAME, .span = read_until_char_inc(lex, '>')};
+        } else if (c == '"') {
+            lex->pos--;
+            *tokenp++ = (Token) {.type = S_CHAR_SEQ, .span = read_until_after_inc(lex, '"')};
+        } else if (c == '(') {
+            *tokenp++ = (Token) {.type = OPEN_PAREN, .span = (Span){lex->pos - 1, lex->pos}};
+        } else if (c == ')') {
+            *tokenp++ = (Token) {.type = CLOSE_PAREN, .span = (Span){lex->pos - 1, lex->pos}};
+        } else if (c == '{') {
+            *tokenp++ = (Token) {.type = OPEN_CURLY, .span = (Span){lex->pos - 1, lex->pos}};
+        } else if (c == ';') {
+            *tokenp++ = (Token) {.type = SEMICOLON, .span = (Span){lex->pos - 1, lex->pos}};
+        } else if (c == '}') {
+            *tokenp++ = (Token) {.type = CLOSE_CURLY, .span = (Span){lex->pos - 1, lex->pos}};
+        } else if (isspace(c)) {
+            lex->pos--;
+            *tokenp++ = (Token) {.type = WHITESPACE, .span = read_spaces(lex)};
+        } if (isdigit(c)) {
+            lex->pos--;
+            *tokenp++ = (Token) {.type = NUM_LITERAL, .span = read_until(lex, notdigit)};
+        } else if (isalpha(c) || c == '_') {
+            lex->pos--;
 
-            tempbuf[i] = '\0';
-
-            ti = binsearch(tempbuf, prep_directives, PREP_DIRECTIVE_SIZE);
-
-            if (ti >= 0) {
-                outmem->data[0] = (Token) {.type = PREP_INCLUDE}; // TODO: Write token func
+            Span word = read_until(lex, notid);
+            if (binsearch(word, lang_keywords, LANG_KEYWORD_SIZE) >= 0) {
+                *tokenp++ = (Token) {.type = KEYWORD, .span = word};
+            } else {
+                *tokenp++ = (Token) {.type = IDENTIFIER, .span = word};
             }
-
-            // outmem->data[0] = PREP_INCLUDE
         }
     }
-
-    // while (sz < bufsize) {
-    //     r = read_rune(buf + sz, &rsz);
-    //
-    //     if (r == '#') {
-    //         sz += rsz;
-    //         for (r = read_rune(buf + sz, &rsz); sz < bufsize && !isspace(r); r = read_rune(buf + sz, &rsz), sz += rsz) {
-    //
-    //         }
-    //
-    //         while () {
-    //             r = read_rune(buf + sz, &rsz);
-    //         }
-    //     }
-    //
-    //     // if (isspace(r) && whi < WH_BUF_SIZE) {
-    //     //     whbuf[whi++] = r;
-    //     // }
-    //     //
-    //     // if (!isspace(r)) {
-    //     //
-    //     // }
-    //
-    //     printf("%c", r);
-    //
-    //     sz += rsz;
-    // }
 
     lexer_free(lex);
 }
 
+
+Span read_until_char_inc(LexerState *st, char c) {
+    Span span = {st->pos};
+    byte *current = st->pos;
+    while (read(st) != c && !st->eof) {
+        current++;
+    }
+
+    if (!st->eof) {
+        current = st->pos;
+    }
+
+    span.end = current;
+    return span;
+}
+
+Span read_spaces(LexerState *st) {
+    Span span = {st->pos};
+    byte *current = st->pos;
+
+    while (isspace(read(st)) && !st->eof) {
+        current++;
+    }
+
+    if (!st->eof) {
+        st->pos--;
+    }
+
+    span.end = current;
+    return span;
+}
+
+Span read_until_after_inc(LexerState *st, char c) {
+    Span span = {st->pos++};
+    byte *current = st->pos;
+
+    while (read(st) != c && !st->eof) {
+        current++;
+    }
+
+    if (!st->eof) {
+        current = st->pos;
+    }
+
+    span.end = current;
+    return span;
+}
+
+Span read_until(LexerState *st, int (*cmp) (int)) {
+    Span span = {st->pos};
+    byte *current = st->pos;
+    while (!(cmp)(read(st)) && !st->eof) {
+        current++;
+    }
+
+    if (!st->eof) {
+        st->pos--;
+    }
+
+    span.end = current;
+    return span;
+}
+
+int notid(int c) {
+    return !isid(c);
+}
+
+int isid(int c) {
+    return isalnum(c) || c == '_';
+}
+
+int notdigit(int c) {
+    return !isdigit(c);
+}

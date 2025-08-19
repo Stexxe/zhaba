@@ -18,12 +18,11 @@ int main(int argc, char** argv) {
     long srclen = ftell(srcfp);
     rewind(srcfp);
 
-    unsigned char *srcbuf = (unsigned char *) malloc(srclen);
+    byte *srcbuf = (byte *) malloc(srclen);
     fread(srcbuf, 1, srclen, srcfp);
     fclose(srcfp);
 
-    TokenMem *mem = token_mem_new();
-    tokenize(srcbuf, srclen, mem);
+    tokenize(srcbuf, srclen);
 
     // int size;
     // rune r = read_rune(srcbuf, &size);
