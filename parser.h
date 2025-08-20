@@ -1,0 +1,84 @@
+#include "lexer.h"
+
+#ifndef ZHABA_PARSER_H
+#define ZHABA_PARSER_H
+
+typedef enum {
+    UNKNOWN_GRAMMAR,
+    INCLUDE_HEADER,
+    FUNC_DEF, FUNC_DECL,
+    STATEMENT,
+    GRAMMAR_TYPE_COUNT
+} GrammarType;
+
+typedef struct {
+    GrammarType type;
+    Token *start_token;
+    Token *end_token;
+    void *data;
+} Grammar;
+
+typedef enum {
+    UNKNOWN_STATEMENT,
+    STATEMENT_COUNT,
+} StatementType;
+
+typedef struct {
+    StatementType type;
+    Token *start_token;
+    Token *end_token;
+    void *data;
+    void *next;
+} Statement;
+
+typedef enum {
+    UNKNOWN_EXPRESSION,
+    FUNC_INVOKE,
+    EXPRESSION_COUNT,
+} ExpressionType;
+
+typedef struct {
+    ExpressionType type;
+    Token *start_token;
+    Token *end_token;
+    void *data;
+} Expression;
+
+typedef enum {
+    UNKNOWN_DATA_TYPE,
+    INT_TYPE,
+    DATA_TYPE_COUNT
+} PrimitiveDataType;
+
+typedef struct {
+    PrimitiveDataType primitive;
+} DataType;
+
+typedef struct {
+    Token *name;
+    DataType *data_type;
+} FuncSignature;
+
+typedef struct {
+    FuncSignature *signature;
+    Statement *first_statement;
+} FuncDef;
+
+struct FuncArgument {
+    Expression *expr;
+    struct FuncArgument *next;
+};
+
+typedef struct FuncArgument FuncArgument;
+
+void skip_white(Token **);
+void skip_token(Token **tokenp, TokenType token_type);
+void parse(Token *);
+Statement *parse_func_body(Token **);
+FuncSignature *parse_func_signature(Token **);
+Statement *parse_statement(Token **);
+Expression *parse_expression(Token **);
+
+DataType *parse_data_type(Token **);
+
+#endif //ZHABA_PARSER_H

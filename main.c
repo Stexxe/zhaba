@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "lexer.c"
+#include "common.h"
+#include "lexer.h"
+#include "parser.h"
 
 int main(int argc, char** argv) {
     if (argc <= 1) {
@@ -22,10 +24,8 @@ int main(int argc, char** argv) {
     fread(srcbuf, 1, srclen, srcfp);
     fclose(srcfp);
 
-    tokenize(srcbuf, srclen);
-
-    // int size;
-    // rune r = read_rune(srcbuf, &size);
+    Token *tokenp = tokenize(srcbuf, srclen);
+    parse(tokenp);
 
     return 0;
 }

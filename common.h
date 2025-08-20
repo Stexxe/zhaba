@@ -1,6 +1,8 @@
 #ifndef ZHABA_COMMON_H
 #define ZHABA_COMMON_H
 
+#include <stddef.h>
+
 typedef enum {
     false, true
 } boolean;

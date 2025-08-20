@@ -3,4 +3,4 @@ project(zhaba C)
 
 set(CMAKE_C_STANDARD 99)
 
-add_executable(zhaba main.c common.c)
+add_executable(zhaba main.c common.c lexer.c parser.c)
