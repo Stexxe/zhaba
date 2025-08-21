@@ -1,6 +1,7 @@
 #ifndef ZHABA_LEXER_H
 #define ZHABA_LEXER_H
 
+#include <stdbool.h>
 #include "common.h"
 
 typedef enum {
@@ -18,30 +19,23 @@ typedef enum {
     COUNT_TOKEN,
 } TokenType;
 
-typedef struct {
+struct Token {
     TokenType type;
     Span span;
-} Token;
+    struct Token *next;
+};
+
+typedef struct Token Token;
 
 typedef struct {
     Span srcspan;
     byte *pos;
-    boolean eof;
+    bool eof;
 } LexerState;
 
 char read(LexerState *st);
 LexerState *lexer_new(byte *src, size_t srcsize);
 void lexer_free(LexerState *st);
-
-
-
-Span read_until(LexerState *st, int (*cmp) (int));
-Span read_spaces(LexerState *st);
-Span read_until_after_inc(LexerState *st, char c);
-Span read_until_char_inc(LexerState *st, char c);
-int isid(int c);
-int notid(int c);
-int notdigit(int c);
 Token *tokenize(byte *buf, size_t bufsize);
 
 #endif //ZHABA_LEXER_H

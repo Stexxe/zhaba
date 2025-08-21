@@ -49,11 +49,23 @@ static char *lang_keywords[] = {
 
 #define LANG_KEYWORD_SIZE (sizeof(lang_keywords) / sizeof(lang_keywords[0]))
 
-static Token tokenout[1024];
+static Span read_until(LexerState *st, int (*cmp) (int));
+static  Span read_spaces(LexerState *st);
+static Span read_until_after_inc(LexerState *st, char c);
+static Span read_until_char_inc(LexerState *st, char c);
+static int isid(int c);
+static int notid(int c);
+static int notdigit(int c);
+static void insert_token(TokenType, Span);
+
+static Token *first_token = NULL, *token = NULL;
 
 Token *tokenize(byte *buf, size_t bufsize) {
     int i;
-    Token *tokenp = tokenout;
+
+    // Token *start_token = NULL; // = prev_token = pool_alloc(sizeof(Token), Token);
+    // prev_token->type = UNKNOWN_TOKEN;
+    // prev_token->next = prev_token;
 
     LexerState *lex = lexer_new(buf, bufsize);
 
@@ -65,50 +77,61 @@ Token *tokenize(byte *buf, size_t bufsize) {
             i = binsearch(kw, prep_directives, PREP_DIRECTIVE_SIZE);
 
             if (i >= 0) {
-                *tokenp++ = (Token) {.type = INCLUDE_TOKEN, .span = kw}; // TODO: Match directives with type
+                insert_token(INCLUDE_TOKEN, kw); // TODO: Match directives with type
+                // *tokenp++ = (Token) {.type = INCLUDE_TOKEN, .span = kw};
             }
         } if (c == '<') {
             lex->pos--;
-            *tokenp++ = (Token) {.type = HEADER_NAME_TOKEN, .span = read_until_char_inc(lex, '>')};
+            insert_token(HEADER_NAME_TOKEN, read_until_char_inc(lex, '>'));
         } else if (c == '"') {
             lex->pos--;
-            *tokenp++ = (Token) {.type = S_CHAR_SEQ_TOKEN, .span = read_until_after_inc(lex, '"')};
+            insert_token(S_CHAR_SEQ_TOKEN, read_until_after_inc(lex, '"'));
         } else if (c == '(') {
-            *tokenp++ = (Token) {.type = OPEN_PAREN_TOKEN, .span = (Span){lex->pos - 1, lex->pos}};
+            insert_token(OPEN_PAREN_TOKEN, (Span){lex->pos - 1, lex->pos});
         } else if (c == ')') {
-            *tokenp++ = (Token) {.type = CLOSE_PAREN_TOKEN, .span = (Span){lex->pos - 1, lex->pos}};
+            insert_token(CLOSE_PAREN_TOKEN, (Span){lex->pos - 1, lex->pos});
         } else if (c == '{') {
-            *tokenp++ = (Token) {.type = OPEN_CURLY_TOKEN, .span = (Span){lex->pos - 1, lex->pos}};
+            insert_token(OPEN_CURLY_TOKEN, (Span){lex->pos - 1, lex->pos});
         } else if (c == ';') {
-            *tokenp++ = (Token) {.type = SEMICOLON_TOKEN, .span = (Span){lex->pos - 1, lex->pos}};
+            insert_token(SEMICOLON_TOKEN, (Span){lex->pos - 1, lex->pos});
         } else if (c == '}') {
-            *tokenp++ = (Token) {.type = CLOSE_CURLY_TOKEN, .span = (Span){lex->pos - 1, lex->pos}};
+            insert_token(CLOSE_CURLY_TOKEN, (Span){lex->pos - 1, lex->pos});
         } else if (isspace(c)) {
             lex->pos--;
-            *tokenp++ = (Token) {.type = WHITESPACE_TOKEN, .span = read_spaces(lex)};
-        } if (isdigit(c)) {
+            insert_token(WHITESPACE_TOKEN, read_spaces(lex));
+        } else if (isdigit(c)) {
             lex->pos--;
-            *tokenp++ = (Token) {.type = NUM_LITERAL_TOKEN, .span = read_until(lex, notdigit)};
+            insert_token(NUM_LITERAL_TOKEN, read_until(lex, notdigit));
         } else if (isalpha(c) || c == '_') {
             lex->pos--;
 
             Span word = read_until(lex, notid);
             if (binsearch(word, lang_keywords, LANG_KEYWORD_SIZE) >= 0) {
-                *tokenp++ = (Token) {.type = KEYWORD_TOKEN, .span = word};
+                insert_token(KEYWORD_TOKEN, word);
             } else {
-                *tokenp++ = (Token) {.type = IDENTIFIER_TOKEN, .span = word};
+                insert_token(IDENTIFIER_TOKEN, word);
             }
         }
     }
 
-    *tokenp = (Token) {.type = EOF_TOKEN};
-
     lexer_free(lex);
-    return tokenout;
+
+    return first_token;
 }
 
+static void insert_token(TokenType type, Span sp) {
+    Token *prev = token;
 
-Span read_until_char_inc(LexerState *st, char c) {
+    token = pool_alloc(sizeof(Token), Token);
+    token->type = type;
+    token->span = sp;
+    token->next = NULL;
+
+    if (first_token == NULL) first_token = token;
+    else prev->next = token;
+}
+
+static Span read_until_char_inc(LexerState *st, char c) {
     Span span = {st->pos};
     byte *current = st->pos;
     while (read(st) != c && !st->eof) {
@@ -123,7 +146,7 @@ Span read_until_char_inc(LexerState *st, char c) {
     return span;
 }
 
-Span read_spaces(LexerState *st) {
+static Span read_spaces(LexerState *st) {
     Span span = {st->pos};
     byte *current = st->pos;
 
@@ -139,7 +162,7 @@ Span read_spaces(LexerState *st) {
     return span;
 }
 
-Span read_until_after_inc(LexerState *st, char c) {
+static Span read_until_after_inc(LexerState *st, char c) {
     Span span = {st->pos++};
     byte *current = st->pos;
 
@@ -155,7 +178,7 @@ Span read_until_after_inc(LexerState *st, char c) {
     return span;
 }
 
-Span read_until(LexerState *st, int (*cmp) (int)) {
+static Span read_until(LexerState *st, int (*cmp) (int)) {
     Span span = {st->pos};
     byte *current = st->pos;
     while (!(cmp)(read(st)) && !st->eof) {
@@ -170,14 +193,14 @@ Span read_until(LexerState *st, int (*cmp) (int)) {
     return span;
 }
 
-int notid(int c) {
+static int notid(int c) {
     return !isid(c);
 }
 
-int isid(int c) {
+static int isid(int c) {
     return isalnum(c) || c == '_';
 }
 
-int notdigit(int c) {
+static int notdigit(int c) {
     return !isdigit(c);
 }

@@ -20,7 +20,9 @@ int main(int argc, char** argv) {
     long srclen = ftell(srcfp);
     rewind(srcfp);
 
-    byte *srcbuf = (byte *) malloc(srclen);
+    pool_init(1024 * 1024);
+
+    byte *srcbuf = pool_alloc(srclen, byte);
     fread(srcbuf, 1, srclen, srcfp);
     fclose(srcfp);
 

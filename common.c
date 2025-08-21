@@ -1,5 +1,30 @@
 #include <stddef.h>
+#include <assert.h>
+#include <stdlib.h>
 #include "common.h"
+
+#include <stdint.h>
+
+static void *pool_start;
+static void *pool_current;
+static size_t pool_size;
+
+void pool_init(size_t size) {
+    pool_size = size;
+    pool_start = malloc(size);
+    assert(pool_start != NULL);
+    pool_current = pool_start;
+}
+
+void *pool_alloc_align(size_t size, size_t align) {
+    uintptr_t current_address = (uintptr_t) pool_current;
+    uintptr_t aligned_address = (current_address + align - 1) & ~(align - 1);
+
+    assert(aligned_address + size <= (uintptr_t) pool_start + pool_size);
+
+    pool_current = (void *) (aligned_address + size);
+    return (void *) aligned_address;
+}
 
 int binsearch(Span target, char *arr[], size_t size) {
     size_t low = 0;
