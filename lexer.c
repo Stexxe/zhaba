@@ -5,6 +5,12 @@
 #include "common.h"
 #include "lexer.h"
 
+void prev(LexerState *st) {
+    if (st->pos > st->srcspan.ptr) {
+        st->pos--;
+    }
+}
+
 char read(LexerState *st) {
     if (st->pos >= st->srcspan.end) {
         st->eof = true;
@@ -62,11 +68,6 @@ static Token *first_token = NULL, *token = NULL;
 
 Token *tokenize(byte *buf, size_t bufsize) {
     int i;
-
-    // Token *start_token = NULL; // = prev_token = pool_alloc(sizeof(Token), Token);
-    // prev_token->type = UNKNOWN_TOKEN;
-    // prev_token->next = prev_token;
-
     LexerState *lex = lexer_new(buf, bufsize);
 
     while (!lex->eof) {
@@ -77,7 +78,7 @@ Token *tokenize(byte *buf, size_t bufsize) {
             i = binsearch(kw, prep_directives, PREP_DIRECTIVE_SIZE);
 
             if (i >= 0) {
-                insert_token(INCLUDE_TOKEN, kw); // TODO: Match directives with type
+                insert_token(INCLUDE_TOKEN, (Span) {kw.ptr-1, kw.end}); // TODO: Match directives with type
                 // *tokenp++ = (Token) {.type = INCLUDE_TOKEN, .span = kw};
             }
         } if (c == '<') {
@@ -114,6 +115,10 @@ Token *tokenize(byte *buf, size_t bufsize) {
                 insert_token(IDENTIFIER_TOKEN, word);
             }
         }
+    }
+
+    for (i = 0; i < 4; i++) {
+        insert_token(STUB_TOKEN, (Span){});
     }
 
     lexer_free(lex);

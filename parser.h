@@ -31,6 +31,8 @@ typedef enum {
 
 typedef struct {
     PrimitiveDataType primitive;
+    Token *start_token;
+    Token *end_token;
 } DataType;
 
 typedef struct {

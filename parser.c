@@ -49,6 +49,9 @@ NodeHeader *parse(Token *first_token) {
                     insert((NodeHeader *)Include);
                 }
             } break;
+            case STUB_TOKEN: {
+                token = token->next;
+            } break;
             case WHITESPACE_TOKEN: {
                 token = token->next;
             } break;
@@ -89,11 +92,14 @@ static void skip_token(TokenType token_type) {
 
 static DataType *parse_data_type() {
     DataType *data_type = pool_alloc(sizeof(DataType), DataType);
+    data_type->start_token = token;
     if (spanstrcmp(token->span, "int") >= 0) { // TODO: Lookup
         data_type->primitive = INT_TYPE;
     }
 
     token = token->next;
+    data_type->end_token = token;
+
     return data_type;
 }
 
@@ -181,7 +187,7 @@ static FuncInvoke *parse_func_invoke() {
     skip_token(CLOSE_PAREN_TOKEN);
 
     FuncInvoke *invoke = pool_alloc_struct(FuncInvoke);
-    invoke->header = (NodeHeader) {FUNC_INVOKE, name, token->next};
+    invoke->header = (NodeHeader) {FUNC_INVOKE, name, token};
     invoke->name = name;
     invoke->first_arg = first_expr;
     return invoke;

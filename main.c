@@ -3,6 +3,7 @@
 #include "common.h"
 #include "lexer.h"
 #include "parser.h"
+#include "file_render.h"
 
 int main(int argc, char** argv) {
     if (argc <= 1) {
@@ -27,7 +28,9 @@ int main(int argc, char** argv) {
     fclose(srcfp);
 
     Token *tokenp = tokenize(srcbuf, srclen);
-    parse(tokenp);
+    NodeHeader *node = parse(tokenp);
+
+    render_file(node, stdout);
 
     return 0;
 }
