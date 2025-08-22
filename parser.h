@@ -4,64 +4,25 @@
 #define ZHABA_PARSER_H
 
 typedef enum {
-    UNKNOWN_ELEMENT,
+    UNKNOWN_NODE,
     INCLUDE_HEADER,
     FUNC_DEF, FUNC_DECL,
+    FUNC_INVOKE,
+    STRING_LITERAL, INT_LITERAL,
+    RETURN_STATEMENT,
     STATEMENT,
-    ELEMENT_TYPE_COUNT
-} ElementType;
+    NODE_TYPE_COUNT
+} NodeType;
 
-struct ElementHeader {
-    ElementType type;
+struct NodeHeader {
+    NodeType type;
     Token *start_token;
     Token *end_token;
-    struct ElementHeader *next;
+    struct NodeHeader *next;
 };
 
-typedef struct ElementHeader ElementHeader;
+typedef struct NodeHeader NodeHeader;
 
-typedef struct {
-    ElementHeader header;
-    Token *name;
-} IncludeHeaderName;
-
-// struct Element {
-//     ElementType type;
-//     Token *start_token;
-//     Token *end_token;
-//     void *data;
-//     void *next;
-// };
-//
-// typedef struct Element Element;
-//
-// typedef enum {
-//     UNKNOWN_STATEMENT,
-//     STATEMENT_COUNT,
-// } StatementType;
-//
-//
-// typedef struct {
-//     StatementType type;
-//     Token *start_token;
-//     Token *end_token;
-//     void *data;
-//     void *next;
-// } Statement;
-//
-// typedef enum {
-//     UNKNOWN_EXPRESSION,
-//     FUNC_INVOKE,
-//     EXPRESSION_COUNT,
-// } ExpressionType;
-//
-// typedef struct {
-//     ExpressionType type;
-//     Token *start_token;
-//     Token *end_token;
-//     void *data;
-// } Expression;
-//
 typedef enum {
     UNKNOWN_DATA_TYPE,
     INT_TYPE,
@@ -74,24 +35,45 @@ typedef struct {
 
 typedef struct {
     Token *name;
-    DataType *data_type;
+    DataType *return_type;
 } FuncSignature;
-//
-// typedef struct {
-//     FuncSignature *signature;
-//     Statement *first_statement;
-// } FuncDef;
-//
-// struct FuncArgument {
-//     Expression *expr;
-//     struct FuncArgument *next;
-// };
+
+typedef struct {
+    NodeHeader header;
+    FuncSignature *signature;
+    NodeHeader *first_statement;
+} FuncDef;
+
+typedef struct {
+    NodeHeader header;
+    Token *name;
+} IncludeHeaderName;
+
+typedef struct {
+    NodeHeader header;
+    Token *name;
+    NodeHeader *first_arg;
+} FuncInvoke;
+
+typedef struct {
+    NodeHeader header;
+    Token *str;
+} StringLiteral;
+
+typedef struct {
+    NodeHeader header;
+    Token *num;
+} IntLiteral;
+
+typedef struct {
+    NodeHeader header;
+    NodeHeader *expr;
+} ReturnStatement;
 
 typedef struct FuncArgument FuncArgument;
 
-ElementHeader *parse(Token *);
+NodeHeader *parse(Token *);
 
-ElementHeader *parse_statement(Token **);
-ElementHeader *parse_expression(Token **);
+
 
 #endif //ZHABA_PARSER_H

@@ -90,6 +90,8 @@ Token *tokenize(byte *buf, size_t bufsize) {
             insert_token(OPEN_PAREN_TOKEN, (Span){lex->pos - 1, lex->pos});
         } else if (c == ')') {
             insert_token(CLOSE_PAREN_TOKEN, (Span){lex->pos - 1, lex->pos});
+        } else if (c == ',') {
+            insert_token(COMMA_TOKEN, (Span){lex->pos - 1, lex->pos});
         } else if (c == '{') {
             insert_token(OPEN_CURLY_TOKEN, (Span){lex->pos - 1, lex->pos});
         } else if (c == ';') {

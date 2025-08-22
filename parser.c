@@ -7,53 +7,21 @@ static char *primitive_types[] = {
 
 #define PRIMITIVE_COUNT (sizeof(primitive_types) / sizeof(primitive_types[0]))
 
-// static Element astout[1024];
-//
-// #define MAX_ELEMENTS 128
-//
-// static DataType data_types[MAX_ELEMENTS];
-// static DataType *data_type_p = data_types;
-//
-// static FuncSignature func_signatures[MAX_ELEMENTS];
-// static FuncSignature *func_signature_p = func_signatures;
-//
-// static FuncDef func_defs[MAX_ELEMENTS];
-// static FuncDef *func_def_p = func_defs;
-//
-// static Statement statements[MAX_ELEMENTS];
-// static Statement *statement_p = statements;
-//
-// static FuncArgument arguments[MAX_ELEMENTS];
-// static FuncArgument *argument_p = arguments;
-
 static void skip_white();
 static FuncSignature *parse_func_signature();
 static DataType *parse_data_type();
 static void skip_token(TokenType token_type);
-static ElementHeader *parse_func_body();
+static NodeHeader *parse_func_body();
+static NodeHeader *parse_statement();
+static FuncInvoke *parse_func_invoke();
+static NodeHeader *parse_expr();
+static ReturnStatement *parse_return();
 
 static Token *token;
-static ElementHeader *first_element = NULL, *element = NULL;
+static NodeHeader *first_element = NULL, *element = NULL;
 
-// static void next_token() {
-//     token = token->next;
-//     assert(token != NULL);
-// }
-
-// static void insert_element(ElementType type, Token *start, Token *end, void *data) {
-//     ElementHeader *prev = element;
-//
-//     element = pool_alloc(sizeof(Element), Element);
-//     element->type = type;
-//     element->start_token = start;
-//     element->end_token = end;
-//
-//     if (start_element == NULL) start_element = element;
-//     else prev->next = element;
-// }
-
-static void insert(ElementHeader *el) {
-    ElementHeader *prev = element;
+static void insert(NodeHeader *el) {
+    NodeHeader *prev = element;
 
     element = el;
 
@@ -61,12 +29,8 @@ static void insert(ElementHeader *el) {
     else prev->next = element;
 }
 
-ElementHeader *parse(Token *first_token) {
-    // Element *start_element = prev_element = pool_alloc(sizeof(Element), Element);
-    // prev_element->type = UNKNOWN_ELEMENT;
-    // prev_element->next = prev_element;
-
-    Token *start_token, *end_token;
+NodeHeader *parse(Token *first_token) {
+    Token *start_token;
 
     for (token = first_token; token != NULL; ) {
         switch (token->type) {
@@ -80,97 +44,35 @@ ElementHeader *parse(Token *first_token) {
                     token = token->next;
 
                     IncludeHeaderName *Include = pool_alloc_struct(IncludeHeaderName);
-                    Include->header = (ElementHeader) {INCLUDE_HEADER, start_token, token};
+                    Include->header = (NodeHeader) {INCLUDE_HEADER, start_token, token};
                     Include->name = header;
-                    insert((ElementHeader *)Include);
-
-                    // insert_element(INCLUDE_HEADER, start_token, token, header);
+                    insert((NodeHeader *)Include);
                 }
             } break;
             case WHITESPACE_TOKEN: {
                 token = token->next;
             } break;
             case KEYWORD_TOKEN: {
+                start_token = token;
                 FuncSignature *sign = parse_func_signature();
                 skip_white();
 
                 if (token->type == SEMICOLON_TOKEN) { // Func declaration
 
                 } else if (token->type == OPEN_CURLY_TOKEN) { // Func definition
-                    ElementHeader *first_statement = parse_func_body();
-                    // FuncDef *def = pool_alloc(sizeof(FuncDef), FuncDef);
-                    // *func_def_p++ = (FuncDef){.signature = sign, .first_statement = first_statement};
+                    NodeHeader *first_statement = parse_func_body();
+                    FuncDef *def = pool_alloc_struct(FuncDef);
+                    def->header = (NodeHeader) {FUNC_DEF, start_token, token};
+                    def->signature = sign;
+                    def->first_statement = first_statement;
+                    insert((NodeHeader *)def);
                 }
-            }
+            } break;
             default: {
                 assert(0);
             } break;
         }
     }
-
-    // Token *tokenp = tokens;
-    // Element *astp = astout;
-
-
-    // while (tokenp->type != EOF_TOKEN) {
-    //     switch (tokenp->type) {
-    //         case INCLUDE_HEADER: {
-    //             start_token = tokenp;
-    //             if ((++tokenp)->type == WHITESPACE_TOKEN) {
-    //                 tokenp++;
-    //             }
-    //
-    //             if (tokenp->type == HEADER_NAME_TOKEN) {
-    //                 Token *header = tokenp;
-    //                 *astp++ = (Element){.type = INCLUDE_HEADER, .start_token = start_token, .end_token = ++tokenp, .data = header};
-    //             }
-    //         } break;
-    //         case WHITESPACE_TOKEN: {
-    //             tokenp++;
-    //         } break;
-    //         case KEYWORD_TOKEN: {
-    //             FuncSignature *sign = parse_func_signature(&tokenp);
-    //             skip_white(&tokenp);
-    //
-    //             if (tokenp->type == SEMICOLON_TOKEN) { // Func declaration
-    //
-    //             } else if (tokenp->type == OPEN_CURLY_TOKEN) { // Func definition
-    //                 Statement *first_statement = parse_func_body(&tokenp);
-    //                 *func_def_p++ = (FuncDef){.signature = sign, .first_statement = first_statement};
-    //             }
-    //
-    //
-    //             // if (binsearch(tokenp->span, primitive_types, PRIMITIVE_COUNT) >= 0) {
-    //             //     start_token = tokenp;
-    //             //     DataType *return_type = parse_data_type(&tokenp);
-    //             //     skip_white(&tokenp);
-    //             //
-    //             //     Token *name = tokenp;
-    //             //     if (tokenp->type == IDENTIFIER_TOKEN) {
-    //             //         tokenp++;
-    //             //     }
-    //             //
-    //             //     skip_white(&tokenp);
-    //             //
-    //             //     if (tokenp->type == OPEN_PAREN_TOKEN) { // Function declaration
-    //             //         skip_token(&tokenp, OPEN_PAREN_TOKEN);
-    //             //         skip_white(&tokenp);
-    //             //         skip_token(&tokenp, CLOSE_PAREN_TOKEN);
-    //             //         skip_white(&tokenp);
-    //             //
-    //             //         if (tokenp->type == OPEN_CURLY_TOKEN) { // Function definition
-    //             //             FuncDef def = {.name = name, .data_type = return_type};
-    //             //             parse_func_body(&tokenp, astp);
-    //             //             *astp = (Grammar){.type = FUNC_DEF, .start_token = start_token, .end_token = tokenp, .data = header}
-    //             //         }
-    //             //     }
-    //             // }
-    //         } break;
-    //         default: {
-    //             assert(false);
-    //         } break;
-    //     }
-    // }
 
     return first_element;
 }
@@ -189,7 +91,6 @@ static DataType *parse_data_type() {
     DataType *data_type = pool_alloc(sizeof(DataType), DataType);
     if (spanstrcmp(token->span, "int") >= 0) { // TODO: Lookup
         data_type->primitive = INT_TYPE;
-        // *data_type_p = (DataType) {.primitive = INT_TYPE};
     }
 
     token = token->next;
@@ -210,58 +111,112 @@ static FuncSignature *parse_func_signature() {
 
     FuncSignature *signature = pool_alloc(sizeof(FuncSignature), FuncSignature);
     signature->name = name;
-    signature->data_type = type;
+    signature->return_type = type;
     return signature;
 }
 
-static ElementHeader *parse_func_body() {
+static NodeHeader *parse_func_body() {
     skip_token(OPEN_CURLY_TOKEN);
     skip_white();
 
-    // TODO: Parse
+    NodeHeader *first_statement = NULL, *prev, *st;
+
+    do {
+        st = parse_statement();
+        skip_white();
+        skip_token(SEMICOLON_TOKEN);
+        skip_white();
+
+        if (first_statement == NULL) first_statement = st;
+        else prev->next = st;
+
+        prev = st;
+    } while (token->type != CLOSE_CURLY_TOKEN);
+
+    skip_token(CLOSE_CURLY_TOKEN);
+
+    return first_statement;
 }
 
-// Statement *parse_func_body() {
-//     skip_token(tokenp, OPEN_CURLY_TOKEN);
-//     skip_white(tokenp);
-//     Statement *prev, *st, *first;
-//
-//     first = prev = parse_statement(tokenp);
-//     skip_token(tokenp, SEMICOLON_TOKEN);
-//     skip_white(tokenp);
-//
-//     while ((*tokenp)->type != CLOSE_CURLY_TOKEN) {
-//         st = parse_statement(tokenp);
-//         prev->next = st;
-//         skip_token(tokenp, SEMICOLON_TOKEN);
-//         skip_white(tokenp);
-//         prev = st;
-//     }
-//
-//     return first;
-// }
-//
-// Statement *parse_statement(Token **tokenp) {
-//     if ((*tokenp)->type == IDENTIFIER_TOKEN) {
-//         Expression *expr = parse_expression(tokenp);
-//
-//         // *tokenp += 1;
-//         //
-//         // skip_white(tokenp);
-//         //
-//         // if ((*tokenp)->type == OPEN_PAREN_TOKEN) {
-//         //
-//         // }
-//     }
-// }
-//
-// Expression *parse_expression(Token **tokenp) {
-//     if ((*tokenp)->type == IDENTIFIER_TOKEN) {
-//         *tokenp += 1;
-//         skip_white(tokenp);
-//
-//         if ((*tokenp)->type == OPEN_PAREN_TOKEN) {
-//             // TODO: Parse func arguments
-//         }
-//     }
-// }
+static NodeHeader *parse_statement() {
+    if (token->type == IDENTIFIER_TOKEN) {
+        if (token->next->type == WHITESPACE_TOKEN ? token->next->next->type == OPEN_PAREN_TOKEN : token->next->type == OPEN_PAREN_TOKEN) {
+            NodeHeader *invoke_expr = (NodeHeader *) parse_func_invoke();
+            return invoke_expr;
+        }
+    } else if (token->type == KEYWORD_TOKEN) {
+        if (spanstrcmp(token->span, "return") >= 0) {
+            NodeHeader *ret = (NodeHeader *) parse_return();
+            return ret;
+        }
+    }
+
+    assert(0);
+}
+
+static FuncInvoke *parse_func_invoke() {
+    Token *name = token;
+    skip_token(IDENTIFIER_TOKEN);
+    skip_white();
+    skip_token(OPEN_PAREN_TOKEN);
+    skip_white();
+
+    NodeHeader *first_expr = NULL, *prev, *expr;
+
+    do {
+        if (token->type == CLOSE_PAREN_TOKEN) break;
+
+        expr = parse_expr();
+        skip_white();
+
+        if (token->type == COMMA_TOKEN) skip_token(COMMA_TOKEN);
+        skip_white();
+
+        if (first_expr == NULL) first_expr = expr;
+        else prev->next = expr;
+
+        prev = expr;
+    } while (token->type != CLOSE_PAREN_TOKEN);
+
+    skip_token(CLOSE_PAREN_TOKEN);
+
+    FuncInvoke *invoke = pool_alloc_struct(FuncInvoke);
+    invoke->header = (NodeHeader) {FUNC_INVOKE, name, token->next};
+    invoke->name = name;
+    invoke->first_arg = first_expr;
+    return invoke;
+}
+
+static ReturnStatement *parse_return() {
+    Token *start = token;
+    skip_token(KEYWORD_TOKEN);
+    skip_white();
+
+    ReturnStatement *ret = pool_alloc_struct(ReturnStatement);
+    NodeHeader *expr = parse_expr();
+    ret->header = (NodeHeader) {RETURN_STATEMENT, start, token};
+    ret->expr = expr;
+    return ret;
+}
+
+static NodeHeader *parse_expr() {
+    if (token->type == S_CHAR_SEQ_TOKEN) {
+        StringLiteral *literal = pool_alloc_struct(StringLiteral);
+        literal->header = (NodeHeader) {STRING_LITERAL, token, token->next};
+        literal->str = token;
+
+        token = token->next;
+
+        return (NodeHeader *) literal;
+    } else if (token->type == NUM_LITERAL_TOKEN) {
+        IntLiteral *literal = pool_alloc_struct(IntLiteral);
+        literal->header = (NodeHeader) {INT_LITERAL, token, token->next};
+        literal->num = token;
+
+        token = token->next;
+
+        return (NodeHeader *) literal;
+    }
+
+    assert(0);
+}
