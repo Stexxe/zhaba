@@ -3,7 +3,9 @@
 #include <stdlib.h>
 #include "common.h"
 
+#include <stdarg.h>
 #include <stdint.h>
+#include <string.h>
 
 static void *pool_start;
 static void *pool_current;
@@ -52,4 +54,75 @@ int spanstrcmp(Span sp, char *str) {
 
     char last = sp.ptr >= sp.end ? '\0' : (char) *sp.ptr;
     return last - *str;
+}
+
+char *path_basename_noext(char *path) {
+    char *p;
+    for (p = path; *p != '\0'; p++)
+        ;
+
+    char *end = p;
+
+    for (; p >= path && *p != '/'; p--) {
+        if (*p == '.') {
+            end = p;
+        }
+    }
+
+    if (*p == '/') p++;
+
+    size_t len = end - p + 1;
+    char *r = pool_alloc(len, char);
+    memcpy(r, p, len);
+    r[len - 1] = '\0';
+    return r;
+}
+
+char *path_join(int count, ...) {
+    va_list ap;
+    va_start(ap, count);
+    char *p;
+
+    size_t len = 0;
+    int i = count;
+    while (i-- > 0) {
+        p = va_arg(ap, char *);
+        len += strlen(p) + 1;
+    }
+
+    va_end(ap);
+
+    char *r = pool_alloc(len, char);
+
+    va_start(ap, count);
+    i = count;
+    char *pos = r;
+    while (i-- > 0) {
+        p = va_arg(ap, char *);
+
+        while ((*pos++ = *p++))
+            ;
+        pos--;
+        if (i != 0) *pos++ = '/';
+    }
+
+    *pos = '\0';
+    va_end(ap);
+    return r;
+}
+
+char *path_withext(char *name, char *ext) {
+    size_t len = strlen(name) + strlen(ext) + 1;
+    char *r = pool_alloc(len, char);
+    char *pos = r;
+
+    while ((*pos++ = *name++))
+        ;
+    pos--;
+
+    while ((*pos++ = *ext++))
+        ;
+    pos--;
+    *pos = '\0';
+    return r;
 }

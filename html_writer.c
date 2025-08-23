@@ -25,7 +25,7 @@ void html_add_attr(char *name, char *value) {
 
 }
 
-void html_write(char *text) {
+void html_write_text(char *text) {
 
 }
 

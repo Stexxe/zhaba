@@ -3,11 +3,11 @@
 #include "common.h"
 #include "lexer.h"
 #include "parser.h"
-#include "file_render.h"
+#include "html_render.h"
 
 int main(int argc, char** argv) {
     if (argc <= 1) {
-        fprintf(stderr, "Usage: %s src-file\n", argv[0]);
+        fprintf(stderr, "Usage: %s src-file [out-dir]\n", argv[0]);
     }
 
     FILE *srcfp = fopen(argv[1], "r");
@@ -30,7 +30,21 @@ int main(int argc, char** argv) {
     Token *tokenp = tokenize(srcbuf, srclen);
     NodeHeader *node = parse(tokenp);
 
-    render_file(node, stdout);
+    char *outdir = ".";
+    if (argc >= 3) {
+        outdir = argv[2];
+    }
+
+    char *html_file = path_join(2, outdir, path_withext(path_basename_noext(argv[1]), ".html"));
+
+    FILE *html_filep = fopen(html_file, "w");
+
+    if (!html_filep) {
+        fprintf(stderr, "Could not open for writing %s\n", html_file);
+        exit(1);
+    }
+
+    gen_html(node, html_filep);
 
     return 0;
 }

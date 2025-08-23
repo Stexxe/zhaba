@@ -24,4 +24,8 @@ typedef struct {
     size_t size;
 } Slice;
 
+char *path_basename_noext(char *);
+char *path_join(int, ...);
+char *path_withext(char *, char *);
+
 #endif //ZHABA_COMMON_H
