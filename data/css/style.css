@@ -1,0 +1,27 @@
+body {
+    font-family: "JetBrains Mono", monospace;
+}
+
+.prep {
+    color: #B1AE60;
+}
+
+.str {
+    color: #69AB73;
+}
+
+.keyword {
+    color: #CF8E6D;
+}
+
+.func-name {
+    color: #56A8EE;
+}
+
+.wrap {
+    color: #bcbec4;
+    font-size: 18px;
+    background: #1e1f22;
+    margin: 10px;
+    padding: 20px;
+}

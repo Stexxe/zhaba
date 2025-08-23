@@ -1,9 +1,17 @@
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/errno.h>
+#include <sys/stat.h>
 #include "common.h"
 #include "lexer.h"
 #include "parser.h"
 #include "html_render.h"
+
+#include "res/reset.inc"
+#include "res/style.inc"
+
+void write_css(unsigned char *data, unsigned int data_len, char *filename, char *dir);
 
 int main(int argc, char** argv) {
     if (argc <= 1) {
@@ -35,6 +43,9 @@ int main(int argc, char** argv) {
         outdir = argv[2];
     }
 
+    int err = mkdir(outdir, 0777);
+    assert(err == 0 || errno == EEXIST);
+
     char *html_file = path_join(2, outdir, path_withext(path_basename_noext(argv[1]), ".html"));
 
     FILE *html_filep = fopen(html_file, "w");
@@ -44,7 +55,25 @@ int main(int argc, char** argv) {
         exit(1);
     }
 
+    write_css(res_reset_css, res_reset_css_len, "reset.css", outdir);
+    write_css(res_style_css, res_style_css_len, "style.css", outdir);
+
     gen_html(node, html_filep);
+    // fclose(html_filep);
 
     return 0;
+}
+
+void write_css(unsigned char *data, unsigned int data_len, char *filename, char *dir) {
+    char *css_dir = path_join(2, dir, "css");
+
+    int err = mkdir(css_dir, 0777);
+    assert(err == 0 || errno == EEXIST);
+
+    char *css_file = path_join(2, css_dir, filename);
+    FILE *css_filep = fopen(css_file, "w");
+    assert(css_filep);
+
+    fwrite(data, 1, data_len, css_filep);
+    fclose(css_filep);
 }
