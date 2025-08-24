@@ -28,7 +28,33 @@ void *pool_alloc_align(size_t size, size_t align) {
     return (void *) aligned_address;
 }
 
-int binsearch(Span target, char *arr[], size_t size) {
+char *pool_alloc_copy_str(char *str) {
+    char *as = pool_alloc(strlen(str) + 1, char);
+    strcpy(as, str);
+    return as;
+}
+
+int binsearch(char *target, char *arr[], size_t size) {
+    int low = 0;
+    int high = size - 1;
+    int comp;
+
+    while (low <= high) {
+        int mid = (low + high) / 2;
+
+        if ((comp = strcmp(target, arr[mid])) < 0) {
+            high = mid - 1;
+        } else if (comp > 0) {
+            low = mid + 1;
+        } else {
+            return mid;
+        }
+    }
+
+    return -1;
+}
+
+int binsearch_span(Span target, char *arr[], size_t size) {
     int low = 0;
     int high = size - 1;
     int comp;

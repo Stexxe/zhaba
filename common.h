@@ -10,12 +10,15 @@ typedef struct {
     byte *end;
 } Span;
 
-int binsearch(Span target, char *arr[], size_t size);
+int binsearch_span(Span target, char *arr[], size_t size);
+int binsearch(char *target, char *arr[], size_t size);
 int spanstrcmp(Span sp, char *str);
 
 void pool_init(size_t);
 #define pool_alloc(size, type) ((type *) pool_alloc_align((size), __alignof(type)))
 #define pool_alloc_struct(type) pool_alloc(sizeof(type), type)
+
+char *pool_alloc_copy_str(char *);
 
 void *pool_alloc_align(size_t size, size_t align);
 

@@ -75,7 +75,7 @@ Token *tokenize(byte *buf, size_t bufsize) {
 
         if (c == '#') {
             Span kw = read_until(lex, isspace);
-            i = binsearch(kw, prep_directives, PREP_DIRECTIVE_SIZE);
+            i = binsearch_span(kw, prep_directives, PREP_DIRECTIVE_SIZE);
 
             if (i >= 0) {
                 insert_token(INCLUDE_TOKEN, (Span) {kw.ptr-1, kw.end}); // TODO: Match directives with type
@@ -109,7 +109,7 @@ Token *tokenize(byte *buf, size_t bufsize) {
             lex->pos--;
 
             Span word = read_until(lex, notid);
-            if (binsearch(word, lang_keywords, LANG_KEYWORD_SIZE) >= 0) {
+            if (binsearch_span(word, lang_keywords, LANG_KEYWORD_SIZE) >= 0) {
                 insert_token(KEYWORD_TOKEN, word);
             } else {
                 insert_token(IDENTIFIER_TOKEN, word);

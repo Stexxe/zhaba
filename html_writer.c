@@ -1,9 +1,16 @@
 #include <assert.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "common.h"
+
+static char *no_close_tags[] = {
+    "br", "link", "meta"
+};
+
+#define NO_CLOSE_TAGS_SIZE (sizeof(no_close_tags) / sizeof(no_close_tags[0]))
 
 typedef struct attr {
     char *name;
@@ -13,10 +20,8 @@ typedef struct attr {
 
 typedef struct {
     char *name;
-    char *text_buffer;
-    char *text_buffer_end;
-    size_t text_buffer_size;
-    Attr *first_attr;
+    Attr *tail_attr;
+    bool open_tag_written;
 } Tag;
 
 struct HtmlHandle {
@@ -26,16 +31,47 @@ struct HtmlHandle {
     Tag *stack_top;
 };
 
+static Tag *push(struct HtmlHandle *h) {
+    assert(h->stack_top < h->stack + h->stack_size);
+    return h->stack_top++;
+}
+
+static Tag *peek(struct HtmlHandle *h) {
+    assert(h->stack_top > h->stack);
+    return h->stack_top - 1;
+}
+static Tag *pop(struct HtmlHandle *h) {
+    assert(h->stack_top > h->stack);
+    return --h->stack_top;
+}
+
+static bool is_empty(struct HtmlHandle *h) {
+    return h->stack_top == h->stack;
+}
+
 static void write_open_tag(struct HtmlHandle *h, Tag *tag) {
-    fprintf(h->filep, "<%s>", tag->name);
-    // TODO: Write attributes
-    fwrite(tag->text_buffer, tag->text_buffer_end - tag->text_buffer, 1, h->filep);
+    fprintf(h->filep, "<%s", tag->name);
+
+    Attr *head = tag->tail_attr->next;
+    char *first_sep = " ", *sep = "";
+
+    // TODO: Attribute escaping
+    for (Attr *attr = head->next; attr != head; attr = attr->next) {
+        fprintf(h->filep, "%s", first_sep);
+        fprintf(h->filep, "%s", sep);
+        fprintf(h->filep, "%s=\"%s\"", attr->name, attr->value);
+        first_sep = "";
+        sep = " ";
+    }
+
+    fprintf(h->filep, ">");
+    tag->open_tag_written = true;
 }
 
 struct HtmlHandle *html_new(FILE *fp) {
     struct HtmlHandle *h = pool_alloc_struct(struct HtmlHandle);
     h->filep = fp;
-    h->stack_size = 128;
+    h->stack_size = 32;
     h->stack = pool_alloc(sizeof(Tag) * h->stack_size, Tag);
     h->stack_top = h->stack;
     return h;
@@ -43,49 +79,55 @@ struct HtmlHandle *html_new(FILE *fp) {
 
 void html_close(struct HtmlHandle *h) {
     // TODO: Check all tags closed
-
     fclose(h->filep);
 }
 
 void html_open_tag(struct HtmlHandle *h, char *tag_name) {
-    if (h->stack_top > h->stack) { // Write previous header
-        write_open_tag(h, h->stack_top - 1);
+    if (!is_empty(h)) { // Write previous header
+        Tag *tag = peek(h);
+        if (!tag->open_tag_written) write_open_tag(h, peek(h));
     }
 
-    assert(h->stack_top <= h->stack + h->stack_size);
-    Tag *tag = h->stack_top;
-    tag->name = pool_alloc(strlen(tag_name) + 1, char);
-    strcpy(tag->name, tag_name);
-    tag->text_buffer_size = 1024;
-    tag->text_buffer = malloc(sizeof(char) * tag->text_buffer_size);
-    assert(tag->text_buffer != NULL);
-    tag->text_buffer_end = tag->text_buffer;
-    tag->first_attr = NULL;
+    Tag *tag = push(h);
+    tag->name = pool_alloc_copy_str(tag_name);
 
-    // fwrite(tag->text_buffer, sizeof(char), tag->text_buffer_size, h->filep);
+    tag->tail_attr = pool_alloc_struct(Attr);
+    tag->tail_attr->next = tag->tail_attr;
 
-    // h->stack_top = tag;
-    h->stack_top++;
+    tag->open_tag_written = false;
 }
 
 void html_close_tag(struct HtmlHandle *h) {
-    assert(h->stack_top > h->stack);
-    Tag *tag = h->stack_top - 1;
+    Tag *tag = pop(h);
+    if (!tag->open_tag_written) write_open_tag(h, tag);
 
-    if (tag == h->stack) {
-        write_open_tag(h, tag);
+    if (binsearch(tag->name, no_close_tags, NO_CLOSE_TAGS_SIZE) < 0) {
+        fprintf(h->filep, "</%s>", tag->name);
     }
-
-    fprintf(h->filep, "</%s>", tag->name);
-
-    free(tag->text_buffer);
-    h->stack_top--;
 }
 
 void html_add_attr(struct HtmlHandle *h, char *name, char *value) {
+    Tag *tag = peek(h);
 
+    Attr *attr = pool_alloc_struct(Attr);
+    attr->name = pool_alloc_copy_str(name);
+    attr->value = pool_alloc_copy_str(value);
+
+    Attr *head = tag->tail_attr->next;
+    tag->tail_attr->next = attr;
+    attr->next = head;
+    tag->tail_attr = attr;
 }
 
 void html_write_text(struct HtmlHandle *h, char *text) {
+    Tag *tag = peek(h);
 
+    if (!tag->open_tag_written) write_open_tag(h, tag);
+
+    // TODO: HTML escaping
+    fwrite(text, strlen(text), 1, h->filep);
+}
+
+void html_add_doctype(struct HtmlHandle *h) {
+    fprintf(h->filep, "<!DOCTYPE html>\n");
 }
