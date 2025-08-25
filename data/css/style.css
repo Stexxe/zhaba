@@ -20,7 +20,8 @@ body {
 
 .wrap {
     color: #bcbec4;
-    font-size: 18px;
+    font-size: 1.2em;
+    line-height: 1.6em;
     background: #1e1f22;
     margin: 10px;
     padding: 20px;

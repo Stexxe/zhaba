@@ -1,10 +1,10 @@
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "common.h"
+#include "lexer.h"
 
 static char *no_close_tags[] = {
     "br", "link", "meta"
@@ -15,6 +15,7 @@ static char *no_close_tags[] = {
 typedef struct attr {
     char *name;
     char *value;
+    bool isflag;
     struct attr *next;
 } Attr;
 
@@ -59,7 +60,13 @@ static void write_open_tag(struct HtmlHandle *h, Tag *tag) {
     for (Attr *attr = head->next; attr != head; attr = attr->next) {
         fprintf(h->filep, "%s", first_sep);
         fprintf(h->filep, "%s", sep);
-        fprintf(h->filep, "%s=\"%s\"", attr->name, attr->value);
+
+        if (attr->isflag) {
+            fprintf(h->filep, "%s", attr->name);
+        } else {
+            fprintf(h->filep, "%s=\"%s\"", attr->name, attr->value);
+        }
+
         first_sep = "";
         sep = " ";
     }
@@ -106,26 +113,63 @@ void html_close_tag(struct HtmlHandle *h) {
     }
 }
 
-void html_add_attr(struct HtmlHandle *h, char *name, char *value) {
+static Attr *alloc_add_attr(struct HtmlHandle *h) {
     Tag *tag = peek(h);
 
     Attr *attr = pool_alloc_struct(Attr);
-    attr->name = pool_alloc_copy_str(name);
-    attr->value = pool_alloc_copy_str(value);
 
     Attr *head = tag->tail_attr->next;
     tag->tail_attr->next = attr;
     attr->next = head;
     tag->tail_attr = attr;
+    return attr;
 }
 
-void html_write_text(struct HtmlHandle *h, char *text) {
-    Tag *tag = peek(h);
+void html_add_attr(struct HtmlHandle *h, char *name, char *value) {
+    Attr *attr = alloc_add_attr(h);
+    attr->name = pool_alloc_copy_str(name);
+    attr->value = pool_alloc_copy_str(value);
+}
 
+void html_add_flag(struct HtmlHandle *h, char *name) {
+    Attr *attr = alloc_add_attr(h);
+    attr->name = pool_alloc_copy_str(name);
+    attr->isflag = true;
+}
+
+void html_write_text_raw(struct HtmlHandle *h, char *text) {
+    Tag *tag = peek(h);
     if (!tag->open_tag_written) write_open_tag(h, tag);
 
-    // TODO: HTML escaping
     fwrite(text, strlen(text), 1, h->filep);
+}
+
+void html_write_token(struct HtmlHandle *h, Token *t) {
+    Tag *tag = peek(h);
+    if (!tag->open_tag_written) write_open_tag(h, tag);
+
+    for (byte *cp = t->span.ptr; cp < t->span.end; cp++) {
+        char c = (char) *cp;
+
+        switch (c) {
+            case ' ': {
+                html_write_text_raw(h, "&nbsp;");
+            } break;
+            case '\n': {
+                html_open_tag(h, "br");
+                html_close_tag(h);
+            } break;
+            case '<': {
+                html_write_text_raw(h, "&lt;");
+            } break;
+            case '>': {
+                html_write_text_raw(h, "&gt;");
+            } break;
+            default: {
+                fputc(c, h->filep);
+            } break;
+        }
+    }
 }
 
 void html_add_doctype(struct HtmlHandle *h) {

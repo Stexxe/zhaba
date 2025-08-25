@@ -58,8 +58,7 @@ int main(int argc, char** argv) {
     write_css(res_reset_css, res_reset_css_len, "reset.css", outdir);
     write_css(res_style_css, res_style_css_len, "style.css", outdir);
 
-    gen_html(node, html_filep);
-    // fclose(html_filep);
+    gen_html(node, argv[1], html_filep);
 
     return 0;
 }
@@ -74,6 +73,11 @@ void write_css(unsigned char *data, unsigned int data_len, char *filename, char 
     FILE *css_filep = fopen(css_file, "w");
     assert(css_filep);
 
-    fwrite(data, 1, data_len, css_filep);
+    size_t nitems = fwrite(data, 1, data_len, css_filep);
+
+    if (nitems <= 0) {
+        fprintf(stderr, "Could not write to %s\n", css_file);
+    }
+
     fclose(css_filep);
 }
