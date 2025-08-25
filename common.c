@@ -11,18 +11,23 @@ static void *pool_start;
 static void *pool_current;
 static size_t pool_size;
 
-void pool_init(size_t size) {
+int pool_init(size_t size) {
     pool_size = size;
     pool_start = malloc(size);
-    assert(pool_start != NULL);
+
+    if (pool_start == NULL) {
+        return -1;
+    }
+
     pool_current = pool_start;
+    return 0;
 }
 
 void *pool_alloc_align(size_t size, size_t align) {
     uintptr_t current_address = (uintptr_t) pool_current;
     uintptr_t aligned_address = (current_address + align - 1) & ~(align - 1);
 
-    assert(aligned_address + size <= (uintptr_t) pool_start + pool_size);
+    assert(aligned_address + size <= (uintptr_t) pool_start + pool_size); // TODO: Grow if needed
 
     pool_current = (void *) (aligned_address + size);
     return (void *) aligned_address;

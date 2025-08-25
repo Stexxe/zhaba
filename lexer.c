@@ -65,10 +65,12 @@ static int notdigit(int c);
 static void insert_token(TokenType, Span);
 
 static Token *first_token = NULL, *token = NULL;
+static int current_line, current_column;
 
-Token *tokenize(byte *buf, size_t bufsize) {
+Token *tokenize(byte *buf, size_t bufsize, LexerError *err) {
     int i;
     LexerState *lex = lexer_new(buf, bufsize);
+    current_column = current_line = 1;
 
     while (!lex->eof) {
         char c = read(lex);
@@ -81,7 +83,7 @@ Token *tokenize(byte *buf, size_t bufsize) {
                 insert_token(INCLUDE_TOKEN, (Span) {kw.ptr-1, kw.end}); // TODO: Match directives with type
                 // *tokenp++ = (Token) {.type = INCLUDE_TOKEN, .span = kw};
             }
-        } if (c == '<') {
+        } else if (c == '<') {
             lex->pos--;
             insert_token(HEADER_NAME_TOKEN, read_until_char_inc(lex, '>'));
         } else if (c == '"') {
@@ -99,6 +101,10 @@ Token *tokenize(byte *buf, size_t bufsize) {
             insert_token(SEMICOLON_TOKEN, (Span){lex->pos - 1, lex->pos});
         } else if (c == '}') {
             insert_token(CLOSE_CURLY_TOKEN, (Span){lex->pos - 1, lex->pos});
+        } else if (c == '=') {
+            insert_token(EQUAL_SIGN_TOKEN, (Span){lex->pos - 1, lex->pos});
+        }  else if (c == '>') {
+            insert_token(GREATER_TOKEN, (Span){lex->pos - 1, lex->pos});
         } else if (isspace(c)) {
             lex->pos--;
             insert_token(WHITESPACE_TOKEN, read_spaces(lex));
@@ -114,6 +120,11 @@ Token *tokenize(byte *buf, size_t bufsize) {
             } else {
                 insert_token(IDENTIFIER_TOKEN, word);
             }
+        } else {
+            err->token = c;
+            err->column = current_column;
+            err->line = current_line;
+            return NULL;
         }
     }
 
@@ -131,8 +142,18 @@ static void insert_token(TokenType type, Span sp) {
 
     token = pool_alloc(sizeof(Token), Token);
     token->type = type;
+    token->column = current_column;
+    token->line = current_line;
     token->span = sp;
     token->next = NULL;
+
+    for (byte *cp = sp.ptr; cp < sp.end; cp++) {
+        current_column++;
+        if (*cp == '\n') {
+            current_column = 1;
+            current_line++;
+        }
+    }
 
     if (first_token == NULL) first_token = token;
     else prev->next = token;

@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
+#include <stdarg.h>
 #include "common.h"
 #include "lexer.h"
 #include "parser.h"
@@ -12,30 +13,46 @@
 #include "res/style.inc"
 
 void write_css(unsigned char *data, unsigned int data_len, char *filename, char *dir);
+void throwerr(char *fmt, ...) {
+    va_list ap;
+    va_start(ap, fmt);
+
+    vfprintf(stderr, fmt, ap);
+
+    va_end(ap);
+    exit(EXIT_FAILURE);
+}
 
 int main(int argc, char** argv) {
     if (argc <= 1) {
-        fprintf(stderr, "Usage: %s src-file [out-dir]\n", argv[0]);
+        throwerr("Usage: %s src-file [out-dir]\n", argv[0]);
     }
 
     FILE *srcfp = fopen(argv[1], "r");
 
     if (!srcfp) {
-        fprintf(stderr, "Could not open %s\n", argv[1]);
-        exit(1);
+        throwerr("Could not open %s\n", argv[1]);
     }
 
     fseek(srcfp, 0, SEEK_END);
     long srclen = ftell(srcfp);
     rewind(srcfp);
 
-    pool_init(1024 * 1024);
+    if (pool_init(1024 * 1024) < 0) {
+        throwerr("Unable to allocate memory\n");
+    }
 
     byte *srcbuf = pool_alloc(srclen, byte);
     fread(srcbuf, 1, srclen, srcfp);
     fclose(srcfp);
 
-    Token *tokenp = tokenize(srcbuf, srclen);
+    LexerError lerr;
+    Token *tokenp = tokenize(srcbuf, srclen, &lerr);
+
+    if (tokenp == NULL) {
+        throwerr("Unexpected token '%c' at %d:%d", lerr.token, lerr.line, lerr.column);
+    }
+
     NodeHeader *node = parse(tokenp);
 
     char *outdir = ".";

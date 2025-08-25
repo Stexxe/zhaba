@@ -15,15 +15,28 @@ typedef enum {
     NUM_LITERAL_TOKEN,
     OPEN_PAREN_TOKEN, CLOSE_PAREN_TOKEN,
     OPEN_CURLY_TOKEN, CLOSE_CURLY_TOKEN,
+    EQUAL_SIGN_TOKEN, GREATER_TOKEN,
     IDENTIFIER_TOKEN,
     STUB_TOKEN,
     EOF_TOKEN,
     COUNT_TOKEN,
 } TokenType;
 
+typedef enum {
+    UNEXPECTED_TOKEN
+} LexerErrorType;
+
+typedef struct {
+    LexerErrorType type;
+    char token;
+    int column;
+    int line;
+} LexerError;
+
 struct Token {
     TokenType type;
     Span span;
+    int line, column;
     struct Token *next;
 };
 
@@ -38,6 +51,6 @@ typedef struct {
 char read(LexerState *st);
 LexerState *lexer_new(byte *src, size_t srcsize);
 void lexer_free(LexerState *st);
-Token *tokenize(byte *buf, size_t bufsize);
+Token *tokenize(byte *buf, size_t bufsize, LexerError *err);
 
 #endif //ZHABA_LEXER_H

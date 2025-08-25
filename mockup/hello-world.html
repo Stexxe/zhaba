@@ -29,9 +29,20 @@
            color: #56A8EE;
         }
 
+        .panel {
+            color: #A1A3AA;
+            font-size: 0.95em;
+            font-weight: lighter;
+            margin-right: 10px;
+            padding-right: 20px;
+        }
+
         .wrap {
+            display: flex;
+            flex-direction: row;
             color: #bcbec4;
-            font-size: 18px;
+            font-size: 1.2em;
+            line-height: 1.6em;
             background: #1e1f22;
             margin: 10px;
             padding: 20px;
@@ -40,14 +51,25 @@
 </head>
 <body>
     <div class="wrap">
-<span class="prep">#include</span> <span class="str">&lt;stdio.h&gt;</span><br>
-<br>
-<span class="keyword">int</span> <span class="func-name">main</span>() {<br>
-&nbsp;&nbsp;&nbsp;&nbsp;printf(<span class="str">"Hello, world!\n"</span>);<br>
-<br>
-&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">return</span> 0;<br>
-}
-<br>
+        <div class="panel">
+            1<br>
+            2<br>
+            3<br>
+            4<br>
+            5<br>
+            6<br>
+            7<br>
+            8
+        </div>
+        <div class="source">
+            <span class="prep">#include</span> <span class="str">&lt;stdio.h&gt;</span><br>
+            <br>
+            <span class="keyword">int</span> <span class="func-name">main</span>() {<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;printf(<span class="str">"Hello, world!\n"</span>);<br>
+            <br>
+            &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">return</span> 0;<br>
+            }<br>
+        </div>
     </div>
 </body>
 </html>

@@ -9,6 +9,10 @@ typedef enum {
     FUNC_DEF, FUNC_DECL,
     FUNC_INVOKE,
     STRING_LITERAL, INT_LITERAL,
+    DECLARATION, ASSIGNMENT,
+    VAR_REFERENCE,
+    GREATER_COMP,
+    IF_STATEMENT,
     RETURN_STATEMENT,
     STATEMENT,
     NODE_TYPE_COUNT
@@ -43,7 +47,7 @@ typedef struct {
 typedef struct {
     NodeHeader header;
     FuncSignature *signature;
-    NodeHeader *first_statement;
+    NodeHeader *statement;
 } FuncDef;
 
 typedef struct {
@@ -54,7 +58,7 @@ typedef struct {
 typedef struct {
     NodeHeader header;
     Token *name;
-    NodeHeader *first_arg;
+    NodeHeader *arg;
 } FuncInvoke;
 
 typedef struct {
@@ -71,6 +75,38 @@ typedef struct {
     NodeHeader header;
     NodeHeader *expr;
 } ReturnStatement;
+
+typedef struct {
+    NodeHeader header;
+    Token *varname;
+    NodeHeader *expr;
+    Token *equal_sign;
+} Assignment;
+
+typedef struct {
+    NodeHeader header;
+    DataType *data_type;
+    Token *varname;
+    Assignment *assign;
+} Declaration;
+
+typedef struct {
+    NodeHeader header;
+    Token *varname;
+} VarReference;
+
+typedef struct {
+    NodeHeader header;
+    NodeHeader *lhs;
+    NodeHeader *rhs;
+} GreaterComp;
+
+typedef struct {
+    NodeHeader header;
+    NodeHeader *cond;
+    NodeHeader *then_statement;
+    NodeHeader *else_statement;
+} IfStatement;
 
 typedef struct FuncArgument FuncArgument;
 

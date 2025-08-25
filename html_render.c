@@ -67,10 +67,10 @@ static void write_statement(HtmlHandle *html, NodeHeader *st) {
         case FUNC_INVOKE: {
             FuncInvoke *invoke = (FuncInvoke*) st;
             write_token_span(html, invoke->name, invoke->name->next);
-            write_token_span(html, invoke->name->next, invoke->first_arg->start_token);
+            write_token_span(html, invoke->name->next, invoke->arg->start_token);
 
             NodeHeader *last_arg = NULL;
-            for (NodeHeader *arg = invoke->first_arg; arg != NULL; arg = arg->next) {
+            for (NodeHeader *arg = invoke->arg; arg != NULL; arg = arg->next) {
                 write_statement(html, arg);
                 if (arg->next != NULL) {
                     write_token_span(html, arg->end_token, arg->next->start_token);
@@ -95,6 +95,38 @@ static void write_statement(HtmlHandle *html, NodeHeader *st) {
         case INT_LITERAL: {
             IntLiteral *literal = (IntLiteral*) st;
             write_token_spanc(html, literal->num, literal->num->next, "num");
+        } break;
+        case DECLARATION: {
+            Declaration *decl = (Declaration*) st;
+            write_token_spanc(html, decl->data_type->start_token, decl->data_type->end_token, "keyword");
+            write_ws(html, decl->data_type->end_token);
+            write_token_span(html, decl->varname, decl->varname->next);
+            write_ws_after(html, decl->varname);
+
+            if (decl->assign != NULL) {
+                write_token_span(html, decl->assign->equal_sign, decl->assign->equal_sign->next);
+                write_ws_after(html, decl->assign->equal_sign);
+                write_statement(html, decl->assign->expr);
+            }
+        } break;
+        case IF_STATEMENT: {
+            IfStatement *ifst = (IfStatement *) st;
+            write_token_spanc(html, ifst->header.start_token, ifst->header.start_token->next, "keyword");
+            write_token_span(html, ifst->header.start_token->next, ifst->cond->start_token);
+            write_statement(html, ifst->cond);
+            write_token_span(html, ifst->cond->end_token, ifst->then_statement->start_token);
+
+            // TODO: Write statements
+        } break;
+        case GREATER_COMP: {
+            GreaterComp *comp = (GreaterComp *) st;
+            write_statement(html, comp->lhs);
+            write_token_span(html, comp->lhs->end_token, comp->rhs->start_token);
+            write_statement(html, comp->rhs);
+        } break;
+        case VAR_REFERENCE: {
+            VarReference *ref = (VarReference *) st;
+            write_token_span(html, ref->varname, ref->varname->next);
         } break;
         default: {
             assert(0);
@@ -122,11 +154,11 @@ static void write_code(HtmlHandle *html, NodeHeader *node) {
             write_token_spanc(html, return_type->start_token, return_type->end_token, "keyword");
             write_ws(html, return_type->end_token);
             write_token_spanc(html, def->signature->name, def->signature->name->next, "func-name");
-            write_token_span(html, def->signature->name->next, def->first_statement->start_token);
+            write_token_span(html, def->signature->name->next, def->statement->start_token);
 
             NodeHeader *st, *last = NULL;
 
-            for (st = def->first_statement; st != NULL; st = st->next) {
+            for (st = def->statement; st != NULL; st = st->next) {
                 write_statement(html, st);
                 last = st;
             }
