@@ -89,7 +89,7 @@ struct HtmlHandle *html_new(FILE *fp) {
 
 void html_close(struct HtmlHandle *h) {
     // TODO: Check all tags closed
-    fclose(h->filep);
+    // fclose(h->filep);
 }
 
 void html_open_tag(struct HtmlHandle *h, char *tag_name) {

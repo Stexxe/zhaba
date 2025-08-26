@@ -2,7 +2,7 @@
 #define ZHABA_FILE_RENDER_H
 
 #include <stdio.h>
-#include "parser.h"
+#include "../parser.h"
 
 void render_file(NodeHeader *, FILE *);
 
