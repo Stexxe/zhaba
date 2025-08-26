@@ -113,6 +113,4 @@ typedef struct FuncArgument FuncArgument;
 
 NodeHeader *parse(Token *);
 
-
-
 #endif //ZHABA_PARSER_H
