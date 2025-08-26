@@ -13,6 +13,7 @@ typedef enum {
     VAR_REFERENCE,
     GREATER_COMP,
     IF_STATEMENT,
+    STUB,
     RETURN_STATEMENT,
     STATEMENT,
     NODE_TYPE_COUNT
@@ -47,7 +48,7 @@ typedef struct {
 typedef struct {
     NodeHeader header;
     FuncSignature *signature;
-    NodeHeader *statement;
+    NodeHeader *last_stmt;
 } FuncDef;
 
 typedef struct {

@@ -9,8 +9,6 @@ static char *primitive_types[] = {
 
 static void skip_token(TokenType token_type);
 static void skip_white();
-static Token *skip_whitep(Token *);
-static Token *skip_(Token *);
 static FuncSignature *parse_func_signature();
 static DataType *parse_data_type();
 static NodeHeader *parse_block();
@@ -74,7 +72,7 @@ NodeHeader *parse(Token *first_token) {
                     FuncDef *def = pool_alloc_struct(FuncDef);
                     def->header = (NodeHeader) {FUNC_DEF, start_token, token};
                     def->signature = sign;
-                    def->statement = first_statement;
+                    def->last_stmt = first_statement;
                     insert((NodeHeader *)def);
                 }
             } break;
@@ -90,12 +88,6 @@ NodeHeader *parse(Token *first_token) {
 static void skip_white() {
     for (; token != NULL && token->type == WHITESPACE_TOKEN; token = token->next)
         ;
-}
-
-static Token *skip_whitep(Token *tokenp) {
-    for (; tokenp != NULL && tokenp->type == WHITESPACE_TOKEN; tokenp = tokenp->next)
-        ;
-    return tokenp;
 }
 
 static void skip_token(TokenType token_type) {
@@ -263,10 +255,18 @@ static IfStatement *parse_if() {
     skip_token(CLOSE_PAREN_TOKEN);
     skip_white();
 
-    NodeHeader *then = token->type == OPEN_CURLY_TOKEN ? parse_block() : parse_statement();
     IfStatement *ifstat = pool_alloc_struct(IfStatement);
     ifstat->cond = cond;
-    ifstat->then_statement = then;
+    ifstat->then_statement = token->type == OPEN_CURLY_TOKEN ? parse_block() : parse_statement();
+
+    NodeHeader *elsest = pool_alloc_struct(NodeHeader);
+    elsest->type = STUB;
+    elsest->start_token = token;
+    elsest->end_token = token;
+    elsest->next = elsest;
+
+    ifstat->else_statement = elsest;
+
     ifstat->header = (NodeHeader) {IF_STATEMENT, start, token};
 
     return ifstat;
@@ -320,27 +320,54 @@ static NodeHeader *parse_expr() {
 }
 
 static NodeHeader *parse_block() {
-    NodeHeader *first_statement = NULL, *prev, *st;
-
     skip_token(OPEN_CURLY_TOKEN);
     skip_white();
 
-    do {
+    NodeHeader *stub = pool_alloc_struct(NodeHeader);
+    stub->type = STUB;
+    stub->start_token = token;
+    stub->end_token = token;
+
+    NodeHeader *st, *prev;
+    st = prev = stub;
+
+    while (token->type != CLOSE_CURLY_TOKEN) {
         st = parse_statement();
+        prev->next = st;
         skip_white();
-        if (st->type != IF_STATEMENT) { // TODO: Add more statements
-            skip_token(SEMICOLON_TOKEN);
-        }
-
+        if (token->type == SEMICOLON_TOKEN) skip_token(SEMICOLON_TOKEN);
         skip_white();
-
-        if (first_statement == NULL) first_statement = st;
-        else prev->next = st;
 
         prev = st;
-    } while (token->type != CLOSE_CURLY_TOKEN);
+    }
 
     skip_token(CLOSE_CURLY_TOKEN);
-    return first_statement;
+    st->next = stub;
+
+    return st;
+
+    // NodeHeader *first_statement = NULL, *prev, *st;
+    // if (token->type == CLOSE_CURLY_TOKEN) {
+    //     skip_token(CLOSE_CURLY_TOKEN);
+    //     return NULL;
+    // }
+
+    // do {
+    //     st = parse_statement();
+    //     skip_white();
+    //     if (st->type != IF_STATEMENT) { // TODO: Add more statements
+    //         skip_token(SEMICOLON_TOKEN);
+    //     }
+    //
+    //     skip_white();
+    //
+    //     if (first_statement == NULL) first_statement = st;
+    //     else prev->next = st;
+    //
+    //     prev = st;
+    // } while (token->type != CLOSE_CURLY_TOKEN);
+    //
+    // skip_token(CLOSE_CURLY_TOKEN);
+    // return first_statement;
 }
 

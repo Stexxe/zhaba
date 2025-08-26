@@ -3,6 +3,9 @@
 #include "parser.h"
 #include "html_writer.h"
 
+static void write_statements(HtmlHandle *html, NodeHeader *last);
+static void write_statement(HtmlHandle *html, NodeHeader *st);
+
 static void write_head(HtmlHandle *html, char *filename) {
     html_open_tag(html, "head");
         html_open_tag(html, "meta");
@@ -62,6 +65,20 @@ static void write_token_spanc(HtmlHandle *html, Token *tokenp, Token *end_token,
     html_close_tag(html);
 }
 
+static void write_statements(HtmlHandle *html, NodeHeader *last) {
+    NodeHeader *head = last->next;
+    NodeHeader *st = head;
+
+    for (st = st->next; st != head; st = st->next) {
+        write_statement(html, st);
+        if (st->next != head) write_token_span(html, st->end_token, st->next->start_token);
+    }
+
+    // if (last != NULL) {
+    //     write_token_span(html, last->end_token, def->header.end_token);
+    // }
+}
+
 static void write_statement(HtmlHandle *html, NodeHeader *st) {
     switch (st->type) {
         case FUNC_INVOKE: {
@@ -116,7 +133,8 @@ static void write_statement(HtmlHandle *html, NodeHeader *st) {
             write_statement(html, ifst->cond);
             write_token_span(html, ifst->cond->end_token, ifst->then_statement->start_token);
 
-            // TODO: Write statements
+            write_statements(html, ifst->then_statement);
+            write_token_span(html, ifst->then_statement->end_token, ifst->else_statement->start_token);
         } break;
         case GREATER_COMP: {
             GreaterComp *comp = (GreaterComp *) st;
@@ -131,10 +149,6 @@ static void write_statement(HtmlHandle *html, NodeHeader *st) {
         default: {
             assert(0);
         } break;
-    }
-
-    if (st->next != NULL) {
-        write_token_span(html, st->end_token, st->next->start_token);
     }
 }
 
@@ -154,18 +168,10 @@ static void write_code(HtmlHandle *html, NodeHeader *node) {
             write_token_spanc(html, return_type->start_token, return_type->end_token, "keyword");
             write_ws(html, return_type->end_token);
             write_token_spanc(html, def->signature->name, def->signature->name->next, "func-name");
-            write_token_span(html, def->signature->name->next, def->statement->start_token);
+            write_token_span(html, def->signature->name->next, def->last_stmt->next->start_token);
 
-            NodeHeader *st, *last = NULL;
-
-            for (st = def->statement; st != NULL; st = st->next) {
-                write_statement(html, st);
-                last = st;
-            }
-
-            if (last != NULL) {
-                write_token_span(html, last->end_token, def->header.end_token);
-            }
+            write_statements(html, def->last_stmt);
+            write_token_span(html, def->last_stmt->end_token, def->header.end_token);
         }
 
         last_node = node;

@@ -101,11 +101,11 @@ void render_file(NodeHeader *node, FILE *file) {
             colored_token_span(return_type->start_token, return_type->end_token, KEYWORD_COLOR, file);
             print_ws(return_type->end_token, file);
             colored(def->signature->name->span, FUNC_NAME_DEF_COLOR, file);
-            colored_token_span(def->signature->name->next, def->statement->start_token, NO_COLOR, file);
+            colored_token_span(def->signature->name->next, def->last_stmt->start_token, NO_COLOR, file);
 
             NodeHeader *st, *last = NULL;
 
-            for (st = def->statement; st != NULL; st = st->next) {
+            for (st = def->last_stmt; st != NULL; st = st->next) {
                 render_statement_expr(st, file);
                 last = st;
             }

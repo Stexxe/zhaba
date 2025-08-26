@@ -7,5 +7,7 @@ int main() {
         printf("more than 100\n");
     }
 
+    if (1) {}
+
     return 0;
 }
