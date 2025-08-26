@@ -67,13 +67,15 @@ static void insert_token(TokenType, Span);
 static Token *first_token = NULL, *token = NULL;
 static int current_line, current_column;
 
-Token *tokenize(byte *buf, size_t bufsize, LexerError *err) {
+Token *tokenize(byte *buf, size_t bufsize, int *nlines, LexerError *err) {
     int i;
     LexerState *lex = lexer_new(buf, bufsize);
     current_column = current_line = 1;
 
     while (!lex->eof) {
         char c = read(lex);
+
+        if (lex->eof) break;
 
         if (c == '#') {
             Span kw = read_until(lex, isspace);
@@ -133,6 +135,7 @@ Token *tokenize(byte *buf, size_t bufsize, LexerError *err) {
     }
 
     lexer_free(lex);
+    *nlines = current_line;
 
     return first_token;
 }

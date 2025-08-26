@@ -51,6 +51,6 @@ typedef struct {
 char read(LexerState *st);
 LexerState *lexer_new(byte *src, size_t srcsize);
 void lexer_free(LexerState *st);
-Token *tokenize(byte *buf, size_t bufsize, LexerError *err);
+Token *tokenize(byte *buf, size_t bufsize, int *nlines, LexerError *err);
 
 #endif //ZHABA_LEXER_H

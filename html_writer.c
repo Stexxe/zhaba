@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include "common.h"
 #include "lexer.h"
@@ -50,6 +51,8 @@ static bool is_empty(struct HtmlHandle *h) {
     return h->stack_top == h->stack;
 }
 
+static void ensure_open_tag_written(struct HtmlHandle *h);
+
 static void write_open_tag(struct HtmlHandle *h, Tag *tag) {
     fprintf(h->filep, "<%s", tag->name);
 
@@ -90,10 +93,7 @@ void html_close(struct HtmlHandle *h) {
 }
 
 void html_open_tag(struct HtmlHandle *h, char *tag_name) {
-    if (!is_empty(h)) { // Write previous header
-        Tag *tag = peek(h);
-        if (!tag->open_tag_written) write_open_tag(h, peek(h));
-    }
+    ensure_open_tag_written(h);
 
     Tag *tag = push(h);
     tag->name = pool_alloc_copy_str(tag_name);
@@ -105,8 +105,9 @@ void html_open_tag(struct HtmlHandle *h, char *tag_name) {
 }
 
 void html_close_tag(struct HtmlHandle *h) {
+    ensure_open_tag_written(h);
+
     Tag *tag = pop(h);
-    if (!tag->open_tag_written) write_open_tag(h, tag);
 
     if (binsearch(tag->name, no_close_tags, NO_CLOSE_TAGS_SIZE) < 0) {
         fprintf(h->filep, "</%s>", tag->name);
@@ -138,15 +139,21 @@ void html_add_flag(struct HtmlHandle *h, char *name) {
 }
 
 void html_write_text_raw(struct HtmlHandle *h, char *text) {
-    Tag *tag = peek(h);
-    if (!tag->open_tag_written) write_open_tag(h, tag);
-
+    ensure_open_tag_written(h);
     fwrite(text, strlen(text), 1, h->filep);
 }
 
+void html_write_textf(struct HtmlHandle *h, char *fmt, ...) {
+    ensure_open_tag_written(h);
+
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(h->filep, fmt, ap);
+    va_end(ap);
+}
+
 void html_write_token(struct HtmlHandle *h, Token *t) {
-    Tag *tag = peek(h);
-    if (!tag->open_tag_written) write_open_tag(h, tag);
+    ensure_open_tag_written(h);
 
     for (byte *cp = t->span.ptr; cp < t->span.end; cp++) {
         char c = (char) *cp;
@@ -174,4 +181,11 @@ void html_write_token(struct HtmlHandle *h, Token *t) {
 
 void html_add_doctype(struct HtmlHandle *h) {
     fprintf(h->filep, "<!DOCTYPE html>\n");
+}
+
+static void ensure_open_tag_written(struct HtmlHandle *h) {
+    if (!is_empty(h)) {
+        Tag *tag = peek(h);
+        if (!tag->open_tag_written) write_open_tag(h, peek(h));
+    }
 }

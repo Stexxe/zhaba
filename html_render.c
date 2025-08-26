@@ -181,7 +181,7 @@ static void write_code(HtmlHandle *html, NodeHeader *node) {
     write_token_span(html, last_node->end_token, last_node->end_token->next);
 }
 
-void gen_html(NodeHeader *node, char *filename, FILE *filep) {
+void gen_html(NodeHeader *node, char *filename, int nlines, FILE *filep) {
     HtmlHandle *html = html_new(filep);
 
     html_add_doctype(html);
@@ -192,7 +192,18 @@ void gen_html(NodeHeader *node, char *filename, FILE *filep) {
         html_open_tag(html, "body");
             html_open_tag(html, "div");
                 html_add_attr(html, "class", "wrap");
-                write_code(html, node);
+                html_open_tag(html, "div");
+                    html_add_attr(html, "class", "panel");
+                    for (int i = 1; i <= nlines; i++) {
+                        html_write_textf(html, "%d", i);
+                        html_open_tag(html, "br");
+                        html_close_tag(html);
+                    }
+                html_close_tag(html);
+                html_open_tag(html, "div");
+                    html_add_attr(html, "class", "source");
+                    write_code(html, node);
+                html_close_tag(html);
             html_close_tag(html);
         html_close_tag(html);
     html_close_tag(html);

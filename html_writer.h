@@ -12,6 +12,7 @@ void html_close_tag(HtmlHandle *);
 void html_add_attr(HtmlHandle *, char *name, char *value);
 void html_add_flag(HtmlHandle *, char *name);
 void html_write_text_raw(HtmlHandle *, char *text);
+void html_write_textf(HtmlHandle *, char *fmt, ...);
 void html_write_token(HtmlHandle *, Token *);
 void html_add_doctype(HtmlHandle *);
 

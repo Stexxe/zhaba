@@ -47,10 +47,11 @@ int main(int argc, char** argv) {
     fclose(srcfp);
 
     LexerError lerr;
-    Token *tokenp = tokenize(srcbuf, srclen, &lerr);
+    int nlines;
+    Token *tokenp = tokenize(srcbuf, srclen, &nlines, &lerr);
 
     if (tokenp == NULL) {
-        throwerr("Unexpected token '%c' at %d:%d", lerr.token, lerr.line, lerr.column);
+        throwerr("tokenize: unexpected token '%c' at %d:%d", lerr.token, lerr.line, lerr.column);
     }
 
     NodeHeader *node = parse(tokenp);
@@ -75,7 +76,7 @@ int main(int argc, char** argv) {
     write_css(res_reset_css, res_reset_css_len, "reset.css", outdir);
     write_css(res_style_css, res_style_css_len, "style.css", outdir);
 
-    gen_html(node, argv[1], html_filep);
+    gen_html(node, argv[1], nlines, html_filep);
 
     return 0;
 }
