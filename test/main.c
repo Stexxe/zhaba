@@ -14,6 +14,9 @@ static char *path_ext(char *p);
 static char *path_join(char *p1, char *p2);
 static char *path_replace_ext(char *p, char *ext);
 
+#define SOURCE_MAX_LEN 1024
+static char source[SOURCE_MAX_LEN];
+
 int main(int argc, char *argv[]) {
     if (argc < 2) {
         fprintf(stderr, "Usage: %s cases-dir\n", argv[0]);
@@ -52,7 +55,17 @@ int main(int argc, char *argv[]) {
             assert(htmlfp != NULL);
 
             HtmlReader *hr = html_new_reader(htmlfp);
-            html_next_tag(hr);
+
+            HtmlRecord record;
+            do {
+                record = html_next_tag(hr);
+
+                if (strcmp("source", record.class) == 0) {
+                    html_read_content(hr, source, SOURCE_MAX_LEN);
+                }
+
+            } while (!record.eof);
+
             html_close_reader(hr);
         }
     }
