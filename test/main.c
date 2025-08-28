@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <dirent.h>
@@ -14,8 +15,15 @@ static char *path_ext(char *p);
 static char *path_join(char *p1, char *p2);
 static char *path_replace_ext(char *p, char *ext);
 
-#define SOURCE_MAX_LEN 1024
+static void decode_source(char *);
+
+#define SOURCE_MAX_LEN 8096
 static char source[SOURCE_MAX_LEN];
+static char decoded_source[SOURCE_MAX_LEN];
+
+#define MAX_CONTEXT 20
+static char actual_ctx[MAX_CONTEXT];
+static char exp_ctx[MAX_CONTEXT];
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
@@ -49,7 +57,8 @@ int main(int argc, char *argv[]) {
                 exit(EXIT_FAILURE);
             }
 
-            char *htmlpath = path_join(outdir, path_replace_ext(ent->d_name, ".html"));
+            char *htmlfilename = path_replace_ext(ent->d_name, ".html");
+            char *htmlpath = path_join(outdir, htmlfilename);
 
             FILE *htmlfp = fopen(htmlpath, "r");
             assert(htmlfp != NULL);
@@ -62,15 +71,110 @@ int main(int argc, char *argv[]) {
 
                 if (strcmp("source", record.class) == 0) {
                     html_read_content(hr, source, SOURCE_MAX_LEN);
+                    break;
                 }
-
             } while (!record.eof);
 
             html_close_reader(hr);
+            fclose(htmlfp);
+            decode_source(source);
+
+            char *exp_filepath = path_join(argv[1], htmlfilename);
+            FILE *expf = fopen(exp_filepath, "r");
+
+            if (!expf) {
+                fprintf(stderr, "render: cannot open %s\n", exp_filepath);
+                exit(EXIT_FAILURE);
+            }
+
+            int line, column;
+            line = column = 1;
+            int expc;
+            char *actp;
+            int exp_ctx_pos = 0;
+            int act_ctx_pos = 0;
+            for (expc = getc(expf), actp = decoded_source; expc != EOF && *actp != '\0'; expc = getc(expf), actp++) {
+                exp_ctx[exp_ctx_pos++ % MAX_CONTEXT] = (char) expc;
+                actual_ctx[act_ctx_pos++ % MAX_CONTEXT] = *actp;
+
+                if (expc == *actp) {
+                    if (expc == '\n') {
+                        line++;
+                        column = 1;
+                    }
+                } else {
+                    break;
+                }
+
+                column++;
+            }
+
+            if (expc != EOF || *actp != '\0') {
+                fprintf(stderr, "render: unexpected character '%c'\n", *actp);
+            }
+
+            fclose(expf);
+
         }
     }
 
     return 0;
+}
+
+static int cmp(char *s1, size_t s1len, char *s2) {
+    for (; *s1 == *s2; s1len--, s1++, s2++)
+        ;
+
+    return (s1len == 0 ? '\0' : *s1) - *s2;
+}
+
+// TODO: Skip attributes
+static void decode_source(char *src) {
+    char c;
+    int len = 0;
+    char *sp;
+    char *destp = decoded_source;
+
+    while ((c = *src++) != '\0') {
+        if (c == '<' && isalpha(*src)) {
+            sp = src;
+            len = 0;
+
+            while (*src != '\0' && *src != '>') {
+                len++;
+                src++;
+            }
+
+            assert(*src == '>');
+
+            if (cmp(sp, len, "br") == 0) {
+                *destp++ = '\n';
+                src++;
+            } else {
+                *destp++ = c;
+                src = sp;
+            }
+        } else if (c == '&') {
+            sp = src;
+            len = 0;
+            while (isalpha(*src)) {
+                src++;
+                len++;
+            }
+
+            if (*src == ';' && cmp(sp, len, "nbsp") == 0) {
+                *destp++ = ' ';
+                src++;
+            } else {
+                *destp++ = c;
+                src = sp;
+            }
+        } else {
+            *destp++ = c;
+        }
+    }
+
+    *destp = '\0';
 }
 
 static char *path_ext(char *p) {

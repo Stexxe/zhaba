@@ -195,6 +195,10 @@ void html_read_content(HtmlReader *r, char *buf, int maxlen) {
                     *buf++ = (char) c;
                 }
 
+                if (c == '>') {
+                    *buf++ = (char) c;
+                }
+
                 *buf = '\0';
 
                 count--;
@@ -202,6 +206,7 @@ void html_read_content(HtmlReader *r, char *buf, int maxlen) {
                 if (strcmp(r->tag, closed_tag) == 0 && count == 0) {
                     buf = closed_tag - 2;
                     *buf = '\0';
+                    break;
                 }
             } else if (isalpha(next)) {
                 open_tag = buf - 1;
