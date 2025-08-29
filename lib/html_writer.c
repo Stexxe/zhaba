@@ -130,6 +130,7 @@ void html_add_attr(struct HtmlHandle *h, char *name, char *value) {
     Attr *attr = alloc_add_attr(h);
     attr->name = pool_alloc_copy_str(name);
     attr->value = pool_alloc_copy_str(value);
+    attr->isflag = false;
 }
 
 void html_add_flag(struct HtmlHandle *h, char *name) {

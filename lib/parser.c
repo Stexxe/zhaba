@@ -98,7 +98,7 @@ static void skip_token(TokenType token_type) {
 static DataType *parse_data_type() {
     DataType *data_type = pool_alloc(sizeof(DataType), DataType);
     data_type->start_token = nonws_token();
-    if (spanstrcmp(nonws_token()->span, "int") >= 0) { // TODO: Lookup
+    if (spanstrcmp(nonws_token()->span, "int") == 0) { // TODO: Lookup
         data_type->primitive = INT_TYPE;
     }
 
@@ -134,9 +134,12 @@ static NodeHeader *parse_statement() {
         }
     } else if (nonws_token()->type == KEYWORD_TOKEN) {
         // TODO: Table lookup
-        if (spanstrcmp(nonws_token()->span, "return") >= 0) {
+        if (spanstrcmp(nonws_token()->span, "return") == 0) {
             NodeHeader *ret = (NodeHeader *) parse_return();
             return ret;
+        } else if (spanstrcmp(nonws_token()->span, "if") == 0) {
+            NodeHeader *ifcond = (NodeHeader *) parse_if();
+            return ifcond;
         } else if (binsearch_span(nonws_token()->span, primitive_types, PRIMITIVE_COUNT) >= 0) {
             Declaration *decl = parse_decl();
             // skip_white();
@@ -149,9 +152,6 @@ static NodeHeader *parse_statement() {
             decl->header.end_token = nonws_token();
 
             return (NodeHeader *) decl;
-        } else if (spanstrcmp(nonws_token()->span, "if") >= 0) {
-            NodeHeader *ifcond = (NodeHeader *) parse_if();
-            return ifcond;
         }
     }
 
@@ -248,16 +248,25 @@ static IfStatement *parse_if() {
     IfStatement *ifstat = pool_alloc_struct(IfStatement);
     ifstat->cond = cond;
     ifstat->then_statement = nonws_token()->type == OPEN_CURLY_TOKEN ? parse_block() : parse_statement();
+    Token *endif = token;
+    ifstat->else_token = NULL;
 
-    NodeHeader *elsest = pool_alloc_struct(NodeHeader);
-    elsest->type = STUB;
-    elsest->start_token = nonws_token();
-    elsest->end_token = nonws_token();
-    elsest->next = elsest;
+    if (spanstrcmp(nonws_token()->span, "else") == 0) {
+        ifstat->else_token = token;
+        skip_token(KEYWORD_TOKEN);
+        ifstat->else_statement = nonws_token()->type == OPEN_CURLY_TOKEN ? parse_block() : parse_statement();
+        endif = token;
+    } else {
+        NodeHeader *elsest = pool_alloc_struct(NodeHeader);
+        elsest->type = STUB;
+        elsest->start_token = nonws_token();
+        elsest->end_token = nonws_token();
+        elsest->next = elsest;
 
-    ifstat->else_statement = elsest;
+        ifstat->else_statement = elsest;
+    }
 
-    ifstat->header = (NodeHeader) {IF_STATEMENT, start, token};
+    ifstat->header = (NodeHeader) {IF_STATEMENT, start, endif};
 
     return ifstat;
 }

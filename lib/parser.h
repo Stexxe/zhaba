@@ -107,6 +107,7 @@ typedef struct {
     NodeHeader *cond;
     NodeHeader *then_statement;
     NodeHeader *else_statement;
+    Token *else_token;
 } IfStatement;
 
 typedef struct FuncArgument FuncArgument;

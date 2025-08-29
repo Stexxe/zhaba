@@ -49,6 +49,8 @@ int main(int argc, char *argv[]) {
         if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) continue;
         assert(ent->d_type == DT_REG);
 
+        if (argc == 3 && strcmp(argv[2], ent->d_name) != 0) continue;
+
         if (strcmp(path_ext(ent->d_name), ".c") == 0) {
             char *srcpath = path_join(argv[1], ent->d_name);
             RenderError err;

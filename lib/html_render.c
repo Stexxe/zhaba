@@ -127,10 +127,18 @@ static void write_statement(HtmlHandle *html, NodeHeader *st) {
             write_token_spanc(html, ifst->header.start_token, ifst->header.start_token->next, "keyword");
             write_token_span(html, ifst->header.start_token->next, ifst->cond->start_token);
             write_statement(html, ifst->cond);
-            write_token_span(html, ifst->cond->end_token, ifst->then_statement->start_token);
 
+            write_token_span(html, ifst->cond->end_token, ifst->then_statement->start_token);
             write_statements(html, ifst->then_statement);
-            write_token_span(html, ifst->then_statement->end_token, ifst->else_statement->start_token);
+
+            write_token_span(html, ifst->then_statement->end_token, ifst->else_token ? ifst->else_token : ifst->header.end_token);
+
+            if (ifst->else_token) {
+                write_token_spanc(html, ifst->else_token, ifst->else_token->next, "keyword");
+                write_token_span(html, ifst->else_token->next, ifst->else_statement->start_token);
+                write_statements(html, ifst->else_statement);
+                write_token_span(html, ifst->else_statement->end_token, ifst->header.end_token);
+            }
         } break;
         case GREATER_COMP: {
             GreaterComp *comp = (GreaterComp *) st;
