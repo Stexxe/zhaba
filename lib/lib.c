@@ -63,6 +63,7 @@ RenderErrorType render(char *srcfile, char *dstdir, RenderError *err) {
 
     gen_html(node, srcfile, nlines, html_filep);
     fclose(html_filep);
+    pool_close();
     return SUCCESS;
 }
 

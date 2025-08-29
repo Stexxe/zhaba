@@ -23,6 +23,12 @@ int pool_init(size_t size) {
     return 0;
 }
 
+void pool_close() {
+    free(pool_start);
+    pool_current = NULL;
+    pool_size = 0;
+}
+
 void *pool_alloc_align(size_t size, size_t align) {
     uintptr_t current_address = (uintptr_t) pool_current;
     uintptr_t aligned_address = (current_address + align - 1) & ~(align - 1);

@@ -71,6 +71,7 @@ Token *tokenize(byte *buf, size_t bufsize, int *nlines, LexerError *err) {
     int i;
     LexerState *lex = lexer_new(buf, bufsize);
     current_column = current_line = 1;
+    first_token = token = NULL;
 
     while (!lex->eof) {
         char c = read(lex);

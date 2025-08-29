@@ -35,6 +35,7 @@ static void insert(NodeHeader *el) {
 }
 
 NodeHeader *parse(Token *first_token) {
+    first_element = element = NULL;
     Token *start_token;
 
     for (token = first_token; nonws_token() != NULL; ) {

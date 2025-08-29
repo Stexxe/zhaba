@@ -15,6 +15,8 @@ int binsearch(char *target, char *arr[], size_t size);
 int spanstrcmp(Span sp, char *str);
 
 int pool_init(size_t);
+void pool_close();
+
 #define pool_alloc(size, type) ((type *) pool_alloc_align((size), __alignof(type)))
 #define pool_alloc_struct(type) pool_alloc(sizeof(type), type)
 
