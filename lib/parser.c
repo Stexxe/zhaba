@@ -102,7 +102,7 @@ static DataType *parse_data_type() {
     }
 
     next_token();
-    data_type->end_token = nonws_token();
+    data_type->end_token = token;
 
     return data_type;
 }

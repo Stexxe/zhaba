@@ -73,10 +73,6 @@ static void write_statements(HtmlHandle *html, NodeHeader *last) {
         write_statement(html, st);
         if (st->next != head) write_token_span(html, st->end_token, st->next->start_token);
     }
-
-    // if (last != NULL) {
-    //     write_token_span(html, last->end_token, def->header.end_token);
-    // }
 }
 
 static void write_statement(HtmlHandle *html, NodeHeader *st) {

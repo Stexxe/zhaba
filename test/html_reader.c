@@ -199,7 +199,7 @@ void html_read_content(HtmlReader *r, char *buf, int maxlen) {
                     *buf++ = (char) c;
                 }
 
-                *buf = '\0';
+                *(buf - 1) = '\0';
 
                 count--;
                 state = Text;
@@ -208,6 +208,8 @@ void html_read_content(HtmlReader *r, char *buf, int maxlen) {
                     *buf = '\0';
                     break;
                 }
+
+                *(buf - 1) = (char) c;
             } else if (isalpha(next)) {
                 open_tag = buf - 1;
                 state = OpenTag;

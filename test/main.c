@@ -17,6 +17,7 @@ static char *path_replace_ext(char *p, char *ext);
 
 static void decode_source(char *);
 static void print_context(char *ctx, int pos, int target_pos);
+static void write_escape_invisible(char, FILE *);
 
 #define SOURCE_MAX_LEN 8096
 static char source[SOURCE_MAX_LEN];
@@ -127,7 +128,10 @@ int main(int argc, char *argv[]) {
                 k = MAX_CONTEXT / 2;
 
                 fprintf(stderr, "Case %s failed. ", ent->d_name);
-                fprintf(stderr, "Unexpected character '%c' at %d:%d\n", actual_ctx[act_target_pos], line, column);
+                fprintf(stderr, "Unexpected character '");
+                write_escape_invisible(actual_ctx[act_target_pos], stderr);
+                fprintf(stderr, "' at %d:%d\n", line, column);
+
                 fprintf(stderr, "Expect: ");
                 print_context(exp_ctx, exp_ctx_pos, exp_target_pos);
                 fprintf(stderr, "\n\n");
@@ -137,11 +141,21 @@ int main(int argc, char *argv[]) {
             }
 
             fclose(expf);
-
         }
     }
 
     return 0;
+}
+
+static void write_escape_invisible(char c, FILE *f) {
+    switch (c) {
+        case '\n': fprintf(f, "\\n"); break;
+        case '\t': fprintf(f, "\\t"); break;
+        case '\r': fprintf(f, "\\r"); break;
+        default: {
+            fprintf(f, "%c", c);
+        } break;
+    }
 }
 
 static void print_context(char *ctx, int pos, int target_pos) {
