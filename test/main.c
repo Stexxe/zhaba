@@ -16,12 +16,13 @@ static char *path_join(char *p1, char *p2);
 static char *path_replace_ext(char *p, char *ext);
 
 static void decode_source(char *);
+static void print_context(char *ctx, int pos, int target_pos);
 
 #define SOURCE_MAX_LEN 8096
 static char source[SOURCE_MAX_LEN];
 static char decoded_source[SOURCE_MAX_LEN];
 
-#define MAX_CONTEXT 20
+#define MAX_CONTEXT 80
 static char actual_ctx[MAX_CONTEXT];
 static char exp_ctx[MAX_CONTEXT];
 
@@ -110,7 +111,29 @@ int main(int argc, char *argv[]) {
             }
 
             if (expc != EOF || *actp != '\0') {
-                fprintf(stderr, "render: unexpected character '%c'\n", *actp);
+                int exp_target_pos = (exp_ctx_pos - 1) % MAX_CONTEXT;
+                int act_target_pos = (act_ctx_pos - 1) % MAX_CONTEXT;
+                int k = MAX_CONTEXT / 2;
+                while ((expc = getc(expf)) != EOF && k-- > 0) {
+                    exp_ctx[exp_ctx_pos++ % MAX_CONTEXT] = (char) expc;
+                }
+
+                char c;
+                k = MAX_CONTEXT / 2;
+                while ((c = *actp++) != '\0' && k-- > 0) {
+                    actual_ctx[act_ctx_pos++ % MAX_CONTEXT] = c;
+                }
+
+                k = MAX_CONTEXT / 2;
+
+                fprintf(stderr, "Case %s failed. ", ent->d_name);
+                fprintf(stderr, "Unexpected character '%c' at %d:%d\n", actual_ctx[act_target_pos], line, column);
+                fprintf(stderr, "Expect: ");
+                print_context(exp_ctx, exp_ctx_pos, exp_target_pos);
+                fprintf(stderr, "\n\n");
+                fprintf(stderr, "Actual: ");
+                print_context(actual_ctx, act_ctx_pos, act_target_pos);
+                fprintf(stderr, "\n\n");
             }
 
             fclose(expf);
@@ -119,6 +142,28 @@ int main(int argc, char *argv[]) {
     }
 
     return 0;
+}
+
+static void print_context(char *ctx, int pos, int target_pos) {
+    int i;
+    int max = pos > MAX_CONTEXT ? MAX_CONTEXT : pos;
+    pos %= MAX_CONTEXT;
+
+    for (i = pos; i < max; i++) {
+        if (i == target_pos) {
+            fprintf(stderr, "\033[7m%c\033[0m", ctx[target_pos]);
+        } else {
+            fputc(ctx[i], stderr);
+        }
+    }
+
+    for (i = 0; i < pos; i++) {
+        if (i == target_pos) {
+            fprintf(stderr, "\033[7m%c\033[0m", ctx[target_pos]);
+        } else {
+            fputc(ctx[i], stderr);
+        }
+    }
 }
 
 static int cmp(char *s1, size_t s1len, char *s2) {
