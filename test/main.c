@@ -5,7 +5,6 @@
 #include <dirent.h>
 #include <errno.h>
 #include <string.h>
-#include <asm-generic/errno-base.h>
 #include <sys/stat.h>
 
 #include "html_reader.h"
@@ -123,7 +122,7 @@ int main(int argc, char *argv[]) {
 
                 char c;
                 k = MAX_CONTEXT / 2;
-                while ((c = *actp++) != '\0' && k-- > 0) {
+                while ((c = *++actp) != '\0' && k-- > 0) {
                     actual_ctx[act_ctx_pos++ % MAX_CONTEXT] = c;
                 }
 

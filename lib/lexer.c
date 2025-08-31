@@ -40,8 +40,54 @@ void lexer_free(LexerState *st) {
     free(st);
 }
 
-static char *prep_directives[] = {
-    "define", "elif", "else", "endif", "error", "if", "ifdef", "ifndef", "include", "line", "pragma", "undef"
+typedef struct {
+    char *name;
+    void (*tokenize)(LexerState *, Span kw);
+} Tokenizer;
+
+static void insert_token(TokenType, Span);
+static Span read_until(LexerState *st, int (*cmp) (int));
+static Span read_spaces(LexerState *st);
+static Span read_until_after_inc(LexerState *st, char c);
+static Span read_until_char_inc(LexerState *st, char c);
+static int isid(int c);
+static int notid(int c);
+static int notdigit(int c);
+static int binsearch_lex_span(Span target, Tokenizer *arr, size_t size);
+
+static void tokenize_nothing(LexerState *lex, Span kw) {}
+
+static void tokenize_include(LexerState *lex, Span kw) {
+    insert_token(INCLUDE_TOKEN, (Span) {kw.ptr-1, kw.end});
+    insert_token(WHITESPACE_TOKEN, read_spaces(lex));
+
+    char c = read(lex);
+
+    if (c == '<') {
+        lex->pos--;
+        insert_token(HEADER_NAME_TOKEN, read_until_char_inc(lex, '>'));
+    }
+}
+
+static void tokenize_define(LexerState *lex, Span kw) {
+    insert_token(DEFINE_TOKEN, (Span) {kw.ptr-1, kw.end});
+    insert_token(WHITESPACE_TOKEN, read_spaces(lex));
+    insert_token(IDENTIFIER_TOKEN, read_until(lex, isspace));
+}
+
+static Tokenizer prep_directives[] = {
+    (Tokenizer) {"define", tokenize_define},
+    (Tokenizer) {"elif", tokenize_nothing},
+    (Tokenizer) {"else", tokenize_nothing},
+    (Tokenizer) {"endif", tokenize_nothing},
+    (Tokenizer) {"error", tokenize_nothing},
+    (Tokenizer) {"if", tokenize_nothing},
+    (Tokenizer) {"ifdef", tokenize_nothing},
+    (Tokenizer) {"ifndef", tokenize_nothing},
+    (Tokenizer) {"include", tokenize_include},
+    (Tokenizer) {"line", tokenize_nothing},
+    (Tokenizer) {"pragma", tokenize_nothing},
+    (Tokenizer) {"undef", tokenize_nothing},
 };
 
 #define PREP_DIRECTIVE_SIZE (sizeof(prep_directives) / sizeof(prep_directives[0]))
@@ -54,15 +100,6 @@ static char *lang_keywords[] = {
 };
 
 #define LANG_KEYWORD_SIZE (sizeof(lang_keywords) / sizeof(lang_keywords[0]))
-
-static Span read_until(LexerState *st, int (*cmp) (int));
-static  Span read_spaces(LexerState *st);
-static Span read_until_after_inc(LexerState *st, char c);
-static Span read_until_char_inc(LexerState *st, char c);
-static int isid(int c);
-static int notid(int c);
-static int notdigit(int c);
-static void insert_token(TokenType, Span);
 
 static Token *first_token = NULL, *token = NULL;
 static int current_line, current_column;
@@ -80,15 +117,11 @@ Token *tokenize(byte *buf, size_t bufsize, int *nlines, LexerError *err) {
 
         if (c == '#') {
             Span kw = read_until(lex, isspace);
-            i = binsearch_span(kw, prep_directives, PREP_DIRECTIVE_SIZE);
+            i = binsearch_lex_span(kw, prep_directives, PREP_DIRECTIVE_SIZE);
 
             if (i >= 0) {
-                insert_token(INCLUDE_TOKEN, (Span) {kw.ptr-1, kw.end}); // TODO: Match directives with type
-                // *tokenp++ = (Token) {.type = INCLUDE_TOKEN, .span = kw};
+                prep_directives[i].tokenize(lex, kw);
             }
-        } else if (c == '<') {
-            lex->pos--;
-            insert_token(HEADER_NAME_TOKEN, read_until_char_inc(lex, '>'));
         } else if (c == '"') {
             lex->pos--;
             insert_token(S_CHAR_SEQ_TOKEN, read_until_after_inc(lex, '"'));
@@ -139,6 +172,26 @@ Token *tokenize(byte *buf, size_t bufsize, int *nlines, LexerError *err) {
     *nlines = current_line;
 
     return first_token;
+}
+
+static int binsearch_lex_span(Span target, Tokenizer *arr, size_t size) {
+    int low = 0;
+    int high = (int) size - 1;
+    int comp;
+
+    while (low <= high) {
+        int mid = (low + high) / 2;
+
+        if ((comp = spanstrcmp(target, arr[mid].name)) < 0) {
+            high = mid - 1;
+        } else if (comp > 0) {
+            low = mid + 1;
+        } else {
+            return mid;
+        }
+    }
+
+    return -1;
 }
 
 static void insert_token(TokenType type, Span sp) {

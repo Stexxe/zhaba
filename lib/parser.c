@@ -48,11 +48,22 @@ NodeHeader *parse(Token *first_token) {
                     Token *header = nonws_token();
                     next_token();
 
-                    IncludeHeaderName *Include = pool_alloc_struct(IncludeHeaderName);
-                    Include->header = (NodeHeader) {INCLUDE_HEADER, start_token, token};
-                    Include->name = header;
-                    insert((NodeHeader *)Include);
+                    IncludeHeaderName *inc = pool_alloc_struct(IncludeHeaderName);
+                    inc->header = (NodeHeader) {INCLUDE_HEADER, start_token, token};
+                    inc->name = header;
+                    insert((NodeHeader *) inc);
                 }
+            } break;
+            case DEFINE_TOKEN: {
+                start_token = nonws_token();
+                next_token();
+
+                Define *def = pool_alloc_struct(Define);
+                def->id = nonws_token();
+                next_token();
+                def->expr = parse_expr();
+                def->header = (NodeHeader) {DEFINE_DIRECTIVE, start_token, token};
+                insert((NodeHeader *) def);
             } break;
             case STUB_TOKEN: {
                 next_token();
@@ -304,6 +315,7 @@ static NodeHeader *parse_expr_lazy() {
 static NodeHeader *parse_expr() {
     Token *start = nonws_token();
     NodeHeader *lhs = parse_expr_lazy();
+    Token *after_expr = token;
     if (nonws_token()->type == GREATER_TOKEN) { // TODO: Check for other binary and unary operators tokens
         next_token();
         GreaterComp *comp = pool_alloc_struct(GreaterComp);
@@ -312,6 +324,7 @@ static NodeHeader *parse_expr() {
         comp->header = (NodeHeader) {GREATER_COMP, start, token};
         return (NodeHeader *) comp;
     } else {
+        token = after_expr;
         return lhs;
     }
 }

@@ -4,7 +4,6 @@
 #include <assert.h>
 #include <errno.h>
 #include <stdlib.h>
-#include <asm-generic/errno-base.h>
 #include <sys/stat.h>
 
 #include "common.h"

@@ -166,6 +166,14 @@ static void write_code(HtmlHandle *html, NodeHeader *node) {
             write_ws_after(html, inc->header.start_token);
             write_token_spanc(html, inc->name, inc->name->next, "str");
             write_ws_after(html, inc->name);
+        } else if (node->type == DEFINE_DIRECTIVE) {
+            Define *def = (Define *) node;
+            write_token_spanc(html, def->header.start_token, def->header.start_token->next, "prep");
+            write_ws_after(html, def->header.start_token);
+            write_token_spanc(html, def->id, def->id->next, "prepid");
+            write_ws_after(html, def->id);
+            write_statement(html, def->expr);
+            write_ws(html, def->header.end_token);
         } else if (node->type == FUNC_DEF) {
             FuncDef *def = (FuncDef *) node;
             DataType *return_type = def->signature->return_type;
