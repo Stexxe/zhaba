@@ -9,11 +9,32 @@
 #include "common.h"
 #include "html_render.h"
 #include "lexer.h"
+#include "prep.h"
 
 #include "res/reset.inc"
 #include "res/style.inc"
 
 void write_css(unsigned char *data, unsigned int data_len, char *filename, char *dir);
+
+// void extract_defines(NodeHeader *node) {
+//     // DefineTable *def_table = prep_define_newtable();
+//     NodeHeader *st, *head_st;
+//     while (node != NULL) {
+//         // if (node->type == FUNC_DEF) {
+//         //     FuncDef *func = (FuncDef *) node;
+//         //     for (head_st = func->last_stmt, st = head_st->next; st != head_st; st = st->next) {
+//         //         printf("%d\n", st->type);
+//         //     }
+//         // }
+//
+//         if (node->type == DEFINE_DIRECTIVE) {
+//             Define *def = (Define *) node;
+//             prep_define_set(def_table, def->id->span, def->expr);
+//         }
+//
+//         node = node->next;
+//     }
+// }
 
 RenderErrorType render(char *srcfile, char *dstdir, RenderError *err) {
     FILE *srcfp = fopen(srcfile, "r");
@@ -59,6 +80,8 @@ RenderErrorType render(char *srcfile, char *dstdir, RenderError *err) {
 
     write_css(res_reset_css, res_reset_css_len, "reset.css", dstdir);
     write_css(res_style_css, res_style_css_len, "style.css", dstdir);
+
+    // extract_defines(node);
 
     gen_html(node, srcfile, nlines, html_filep);
     fclose(html_filep);

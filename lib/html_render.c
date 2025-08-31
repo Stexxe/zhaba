@@ -150,6 +150,10 @@ static void write_statement(HtmlHandle *html, NodeHeader *st) {
             VarReference *ref = (VarReference *) st;
             write_token_span(html, ref->varname, ref->varname->next);
         } break;
+        case DEFINE_REFERENCE: {
+            DefineReference *ref = (DefineReference *) st;
+            write_token_spanc(html, ref->header.start_token, ref->header.end_token, "prepid");
+        } break;
         default: {
             assert(0);
         } break;

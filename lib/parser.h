@@ -11,7 +11,7 @@ typedef enum {
     FUNC_INVOKE,
     STRING_LITERAL, INT_LITERAL,
     DECLARATION, ASSIGNMENT,
-    VAR_REFERENCE,
+    VAR_REFERENCE, DEFINE_REFERENCE,
     GREATER_COMP,
     IF_STATEMENT,
     STUB,
@@ -102,6 +102,11 @@ typedef struct {
     NodeHeader header;
     Token *varname;
 } VarReference;
+
+typedef struct {
+    NodeHeader header;
+    NodeHeader *expr;
+} DefineReference;
 
 typedef struct {
     NodeHeader header;

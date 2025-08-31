@@ -85,6 +85,15 @@ int binsearch_span(Span target, char *arr[], size_t size) {
     return -1;
 }
 
+int spancmp(Span sp1, Span sp2) {
+    byte *cp1, *cp2;
+
+    for (cp1 = sp1.ptr, cp2 = sp2.ptr; *cp1 == *cp2 && cp1 < sp1.end && cp2 < sp2.end; cp1++, cp2++)
+        ;
+
+    return (cp1 < sp1.end ? *cp1 : 0) - (cp2 < sp2.end ? *cp2 : 0);
+}
+
 int spanstrcmp(Span sp, char *str) {
     for (; *str == (char) *sp.ptr && sp.ptr < sp.end && *str != '\0'; sp.ptr++, str++)
         ;

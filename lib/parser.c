@@ -1,6 +1,8 @@
 #include "parser.h"
 #include <assert.h>
 
+#include "prep.h"
+
 static char *primitive_types[] = {
     "double", "char", "float", "int", "long", "short"
 };
@@ -25,6 +27,8 @@ static IfStatement *parse_if();
 static Token *token;
 static NodeHeader *first_element = NULL, *element = NULL;
 
+static DefineTable *define_table;
+
 static void insert(NodeHeader *el) {
     NodeHeader *prev = element;
 
@@ -37,6 +41,7 @@ static void insert(NodeHeader *el) {
 NodeHeader *parse(Token *first_token) {
     first_element = element = NULL;
     Token *start_token;
+    define_table = prep_define_newtable();
 
     for (token = first_token; nonws_token() != NULL; ) {
         switch (nonws_token()->type) {
@@ -64,6 +69,8 @@ NodeHeader *parse(Token *first_token) {
                 def->expr = parse_expr();
                 def->header = (NodeHeader) {DEFINE_DIRECTIVE, start_token, token};
                 insert((NodeHeader *) def);
+
+                prep_define_set(define_table, def->id->span, def->expr);
             } break;
             case STUB_TOKEN: {
                 next_token();
@@ -300,13 +307,24 @@ static NodeHeader *parse_expr_lazy() {
 
         return (NodeHeader *) literal;
     } else if (nonws_token()->type == IDENTIFIER_TOKEN) {
-        VarReference *ref = pool_alloc_struct(VarReference);
-        ref->header = (NodeHeader) {VAR_REFERENCE, token, nonws_token()->next};
-        ref->varname = nonws_token();
+        NodeHeader *def_expr;
+
+        NodeHeader *node;
+        if ((def_expr = prep_define_get(define_table, token->span)) != NULL) {
+            DefineReference *ref = pool_alloc_struct(DefineReference);
+            ref->header = (NodeHeader) {DEFINE_REFERENCE, token, nonws_token()->next};
+            ref->expr = def_expr;
+            node = (NodeHeader *) ref;
+        } else {
+            VarReference *ref = pool_alloc_struct(VarReference);
+            ref->header = (NodeHeader) {VAR_REFERENCE, token, nonws_token()->next};
+            ref->varname = nonws_token();
+            node = (NodeHeader *) ref;
+        }
 
         next_token();
 
-        return (NodeHeader *) ref;
+        return node;
     }
 
     assert(0);

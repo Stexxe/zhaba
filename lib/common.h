@@ -4,6 +4,7 @@
 #include <stddef.h>
 
 typedef unsigned char byte;
+typedef unsigned int uint;
 
 typedef struct {
     byte *ptr;
@@ -13,6 +14,7 @@ typedef struct {
 int binsearch_span(Span target, char *arr[], size_t size);
 int binsearch(char *target, char *arr[], size_t size);
 int spanstrcmp(Span sp, char *str);
+int spancmp(Span sp1, Span sp2);
 
 int pool_init(size_t);
 void pool_close();
