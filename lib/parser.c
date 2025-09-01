@@ -133,15 +133,25 @@ static void skip_white() {
 static DataType *parse_data_type() {
     DataType *data_type = pool_alloc(sizeof(DataType), DataType);
     data_type->start_token = nonws_token();
-    data_type->primitive = UNKNOWN_PRIMITIVE_TYPE;
 
-    int i;
-    if ((i = binsearch_primitive(data_type->start_token->span, primitive_types, PRIMITIVE_COUNT)) >= 0) {
-        data_type->primitive = primitive_types[i].type;
+    Token *end_token;
+
+    if (token->type == IDENTIFIER_TOKEN) { // typedef
+        data_type->typedef_token = token;
+        next_token();
+        end_token = token;
+    } else {
+        data_type->primitive = UNKNOWN_PRIMITIVE_TYPE;
+
+        int i;
+        if ((i = binsearch_primitive(data_type->start_token->span, primitive_types, PRIMITIVE_COUNT)) >= 0) {
+            data_type->primitive = primitive_types[i].type;
+        }
+
+        next_token();
+        end_token = token;
     }
 
-    next_token();
-    Token *end_token = token;
     skip_white();
 
     data_type->pointer = NO_POINTER_TYPE;
@@ -205,6 +215,9 @@ static NodeHeader *parse_statement() {
         if (nonws_token()->next->type == OPEN_PAREN_TOKEN) {
             NodeHeader *invoke_expr = (NodeHeader *) parse_func_invoke();
             return invoke_expr;
+        } else {
+            Declaration *decl = parse_decl();
+            return (NodeHeader *) decl;
         }
     } else if (nonws_token()->type == KEYWORD_TOKEN) {
         // TODO: Table lookup

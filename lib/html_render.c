@@ -58,6 +58,13 @@ static void write_token_span(HtmlHandle *html, Token *tokenp, Token *end_token) 
     }
 }
 
+static void write_tokenc(HtmlHandle *html, Token *token, char *class) {
+    html_open_tag(html, "span");
+        html_add_attr(html, "class", class);
+        html_write_token(html, token);
+    html_close_tag(html);
+}
+
 static void write_token_spanc(HtmlHandle *html, Token *tokenp, Token *end_token, char *class) {
     html_open_tag(html, "span");
     for (; tokenp != end_token; tokenp = tokenp->next) {
@@ -83,11 +90,15 @@ static void write_decl(HtmlHandle *html, Declaration *decl) {
         return;
     }
 
-    for (Token *t = decl->data_type->start_token; t != decl->data_type->end_token; t = t->next) {
-        if (t->type == KEYWORD_TOKEN) {
-            write_token_spanc(html, t, t->next, "keyword");
-        } else {
-            write_token_span(html, t, t->next);
+    if (decl->data_type->typedef_token != NULL) {
+        write_tokenc(html, decl->data_type->typedef_token, "typedef");
+    } else {
+        for (Token *t = decl->data_type->start_token; t != decl->data_type->end_token; t = t->next) {
+            if (t->type == KEYWORD_TOKEN) {
+                write_token_spanc(html, t, t->next, "keyword");
+            } else {
+                write_token_span(html, t, t->next);
+            }
         }
     }
 

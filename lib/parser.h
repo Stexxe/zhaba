@@ -43,6 +43,7 @@ typedef enum {
 typedef struct {
     PrimitiveDataType primitive;
     PointerType pointer;
+    Token *typedef_token;
     Token *start_token;
     Token *end_token;
 } DataType;
