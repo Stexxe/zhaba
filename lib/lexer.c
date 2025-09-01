@@ -140,10 +140,34 @@ Token *tokenize(byte *buf, size_t bufsize, int *nlines, LexerError *err) {
             insert_token(SEMICOLON_TOKEN, (Span){lex->pos - 1, lex->pos});
         } else if (c == '}') {
             insert_token(CLOSE_CURLY_TOKEN, (Span){lex->pos - 1, lex->pos});
+        } else if (c == '!') {
+            byte *start = lex->pos - 1;
+            if (read(lex) == '=') {
+                insert_token(NOT_EQUAL_TOKEN, (Span){start, lex->pos});
+            } else {
+                insert_token(NOT_TOKEN, (Span){start, lex->pos});
+            }
         } else if (c == '=') {
-            insert_token(EQUAL_SIGN_TOKEN, (Span){lex->pos - 1, lex->pos});
+            byte *start = lex->pos - 1;
+            if (read(lex) == '=') {
+                insert_token(DOUBLE_EQUAL_TOKEN, (Span){start, lex->pos});
+            } else {
+                insert_token(EQUAL_TOKEN, (Span){start, lex->pos});
+            }
+        } else if (c == '<') {
+            byte *start = lex->pos - 1;
+            if (read(lex) == '=') {
+                insert_token(LESSER_OR_EQUAL_TOKEN, (Span){start, lex->pos});
+            } else {
+                insert_token(LESSER_TOKEN, (Span){start, lex->pos});
+            }
         } else if (c == '>') {
-            insert_token(GREATER_TOKEN, (Span){lex->pos - 1, lex->pos});
+            byte *start = lex->pos - 1;
+            if (read(lex) == '=') {
+                insert_token(GREATER_OR_EQUAL_TOKEN, (Span){start, lex->pos});
+            } else {
+                insert_token(GREATER_TOKEN, (Span){start, lex->pos});
+            }
         } else if (c == '*') {
             insert_token(STAR_TOKEN, (Span){lex->pos - 1, lex->pos});
         } else if (c == '.') {

@@ -8,10 +8,11 @@
 #include <sys/stat.h>
 
 #include "html_reader.h"
+#include "../lib/lexer.h"
 #include "../lib/lib.h"
 
 static char *path_ext(char *p);
-static char *path_join(char *p1, char *p2);
+static char *path_joinm(char *p1, char *p2);
 static char *path_replace_ext(char *p, char *ext);
 
 static void decode_source(char *);
@@ -51,17 +52,32 @@ int main(int argc, char *argv[]) {
         if (argc == 3 && strcmp(argv[2], ent->d_name) != 0) continue;
 
         if (strcmp(path_ext(ent->d_name), ".c") == 0) {
-            char *srcpath = path_join(argv[1], ent->d_name);
+            char *srcpath = path_joinm(argv[1], ent->d_name);
             RenderError err;
             RenderErrorType res = render(srcpath, outdir, &err);
 
             if (res < 0) {
-                fprintf(stderr, "render: unexpected error %d\n", res);
+                switch (res) {
+                    case OPEN_SRC_FILE_ERROR: {
+                        fprintf(stderr, "Could not open %s\n", argv[1]);
+                    } break;
+                    case MEM_ALLOC_ERROR: {
+                        fprintf(stderr, "Unable to allocate memory\n");
+                    }
+                    case LEXER_ERROR: {
+                        LexerError *lerr = (LexerError *) err.error;
+                        fprintf(stderr, "tokenize: unexpected token '%c' at %d:%d", lerr->token, lerr->line, lerr->column);
+                    } break;
+                    default: {
+                        // Do nothing
+                    } break;
+                }
+
                 exit(EXIT_FAILURE);
             }
 
             char *htmlfilename = path_replace_ext(ent->d_name, ".html");
-            char *htmlpath = path_join(outdir, htmlfilename);
+            char *htmlpath = path_joinm(outdir, htmlfilename);
 
             FILE *htmlfp = fopen(htmlpath, "r");
             assert(htmlfp != NULL);
@@ -82,7 +98,7 @@ int main(int argc, char *argv[]) {
             fclose(htmlfp);
             decode_source(source);
 
-            char *exp_filepath = path_join(argv[1], htmlfilename);
+            char *exp_filepath = path_joinm(argv[1], htmlfilename);
             FILE *expf = fopen(exp_filepath, "r");
 
             if (!expf) {
@@ -248,7 +264,7 @@ static char *path_ext(char *p) {
     return *cp == '.' ? cp : cp + 1;
 }
 
-static char *path_join(char *p1, char *p2) {
+static char *path_joinm(char *p1, char *p2) {
     char *p = (char *) malloc(strlen(p1) + strlen(p2) + 2);
     assert(p != NULL);
     sprintf(p, "%s/%s", p1, p2);

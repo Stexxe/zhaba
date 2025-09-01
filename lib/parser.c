@@ -21,6 +21,14 @@ static Primitive primitive_types[] = {
 
 #define PRIMITIVE_COUNT (sizeof(primitive_types) / sizeof(primitive_types[0]))
 
+static TokenType binary_operations[] = {
+    NOT_EQUAL_TOKEN, DOUBLE_EQUAL_TOKEN,
+    GREATER_TOKEN, GREATER_OR_EQUAL_TOKEN,
+    LESSER_TOKEN, LESSER_OR_EQUAL_TOKEN,
+};
+
+#define BINARY_OP_COUNT (sizeof(binary_operations) / sizeof(binary_operations[0]))
+
 static void skip_token(TokenType token_type);
 static void skip_white();
 static void next_token();
@@ -231,7 +239,7 @@ static NodeHeader *parse_statement() {
             Declaration *decl = parse_decl();
             // skip_white();
 
-            if (nonws_token()->type == EQUAL_SIGN_TOKEN) {
+            if (nonws_token()->type == EQUAL_TOKEN) {
                 token = decl->id;
                 decl->assign = parse_assign();
             }
@@ -240,6 +248,8 @@ static NodeHeader *parse_statement() {
 
             return (NodeHeader *) decl;
         }
+    } else {
+        return parse_expr();
     }
 
     assert(0);
@@ -318,7 +328,7 @@ static Assignment *parse_assign() {
     Token *varname = nonws_token();
     skip_token(IDENTIFIER_TOKEN);
     Token *sign = nonws_token();
-    skip_token(EQUAL_SIGN_TOKEN);
+    skip_token(EQUAL_TOKEN);
 
     assign->varname = varname;
     assign->equal_sign = sign;
@@ -413,7 +423,7 @@ static NodeHeader *parse_expr() {
         GreaterComp *comp = pool_alloc_struct(GreaterComp);
         comp->lhs = lhs;
         comp->rhs = parse_expr_lazy();
-        comp->header = (NodeHeader) {GREATER_COMP, start, token};
+        comp->header = (NodeHeader) {BINARY_OP, start, token};
         return (NodeHeader *) comp;
     } else {
         token = after_expr;

@@ -178,7 +178,7 @@ static void write_statement(HtmlHandle *html, NodeHeader *st) {
                 write_token_span(html, ifst->else_statement->end_token, ifst->header.end_token);
             }
         } break;
-        case GREATER_COMP: {
+        case BINARY_OP: {
             GreaterComp *comp = (GreaterComp *) st;
             write_statement(html, comp->lhs);
             write_token_span(html, comp->lhs->end_token, comp->rhs->start_token);

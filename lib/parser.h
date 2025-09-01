@@ -12,7 +12,7 @@ typedef enum {
     STRING_LITERAL, INT_LITERAL,
     DECLARATION, ASSIGNMENT,
     VAR_REFERENCE, DEFINE_REFERENCE,
-    GREATER_COMP,
+    BINARY_OP,
     IF_STATEMENT,
     STUB,
     RETURN_STATEMENT,
@@ -126,7 +126,7 @@ typedef struct {
     NodeHeader header;
     NodeHeader *lhs;
     NodeHeader *rhs;
-} GreaterComp;
+} BinaryOp;
 
 typedef struct {
     NodeHeader header;
