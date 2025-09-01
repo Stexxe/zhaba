@@ -164,12 +164,12 @@ static void write_code(HtmlHandle *html, NodeHeader *node) {
     NodeHeader *last_node = node;
 
     while (node != NULL) {
-        if (node->type == INCLUDE_HEADER) {
-            IncludeHeaderName *inc = (IncludeHeaderName *) node;
+        if (node->type == INCLUDE_DIRECTIVE) {
+            Include *inc = (Include *) node;
             write_token_spanc(html, inc->header.start_token, inc->header.start_token->next, "prep");
             write_ws_after(html, inc->header.start_token);
-            write_token_spanc(html, inc->name, inc->name->next, "str");
-            write_ws_after(html, inc->name);
+            write_token_spanc(html, inc->pathOrHeader, inc->pathOrHeader->next, "str");
+            write_ws(html, inc->header.end_token);
         } else if (node->type == DEFINE_DIRECTIVE) {
             Define *def = (Define *) node;
             write_token_spanc(html, def->header.start_token, def->header.start_token->next, "prep");

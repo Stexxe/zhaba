@@ -89,12 +89,12 @@ void render_file(NodeHeader *node, FILE *file) {
     NodeHeader *last_node = node;
 
     while (node != NULL) {
-        if (node->type == INCLUDE_HEADER) {
-            IncludeHeaderName *inc = (IncludeHeaderName *) node;
+        if (node->type == INCLUDE_DIRECTIVE) {
+            Include *inc = (Include *) node;
             colored(inc->header.start_token->span, PREP_INST_COLOR, file);
             print_ws_after(inc->header.start_token, file);
-            colored(inc->name->span, STR_LIT_COLOR, file);
-            print_ws_after(inc->name, file);
+            // colored(inc->name->span, STR_LIT_COLOR, file);
+            // print_ws_after(inc->name, file);
         } else if (node->type == FUNC_DEF) {
             FuncDef *def = (FuncDef *) node;
             DataType *return_type = def->signature->return_type;

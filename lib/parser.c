@@ -45,19 +45,18 @@ NodeHeader *parse(Token *first_token) {
 
     for (token = first_token; nonws_token() != NULL; ) {
         switch (nonws_token()->type) {
-            case INCLUDE_HEADER: {
+            case INCLUDE_DIRECTIVE: {
                 start_token = nonws_token();
                 next_token();
 
-                if (nonws_token()->type == HEADER_NAME_TOKEN) {
-                    Token *header = nonws_token();
-                    next_token();
+                Include *inc = pool_alloc_struct(Include);
 
-                    IncludeHeaderName *inc = pool_alloc_struct(IncludeHeaderName);
-                    inc->header = (NodeHeader) {INCLUDE_HEADER, start_token, token};
-                    inc->name = header;
-                    insert((NodeHeader *) inc);
-                }
+                assert(nonws_token()->type == HEADER_NAME_TOKEN || nonws_token()->type == INCLUDE_PATH_TOKEN);
+                inc->pathOrHeader = nonws_token();
+                inc->include_type = nonws_token()->type == HEADER_NAME_TOKEN ? IncludeHeaderType : IncludePathType;
+                next_token();
+                inc->header = (NodeHeader) {INCLUDE_DIRECTIVE, start_token, token};
+                insert((NodeHeader *) inc);
             } break;
             case DEFINE_TOKEN: {
                 start_token = nonws_token();

@@ -5,7 +5,7 @@
 
 typedef enum {
     UNKNOWN_NODE,
-    INCLUDE_HEADER,
+    INCLUDE_DIRECTIVE,
     DEFINE_DIRECTIVE,
     FUNC_DEF, FUNC_DECL,
     FUNC_INVOKE,
@@ -52,10 +52,15 @@ typedef struct {
     NodeHeader *last_stmt;
 } FuncDef;
 
+typedef enum {
+    IncludeHeaderType, IncludePathType
+} IncludeType;
+
 typedef struct {
     NodeHeader header;
-    Token *name;
-} IncludeHeaderName;
+    IncludeType include_type;
+    Token *pathOrHeader;
+} Include;
 
 typedef struct {
     NodeHeader header;

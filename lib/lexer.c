@@ -66,6 +66,9 @@ static void tokenize_include(LexerState *lex, Span kw) {
     if (c == '<') {
         lex->pos--;
         insert_token(HEADER_NAME_TOKEN, read_until_char_inc(lex, '>'));
+    } else if (c == '"') {
+        lex->pos--;
+        insert_token(INCLUDE_PATH_TOKEN, read_until_after_inc(lex, '"'));
     }
 }
 

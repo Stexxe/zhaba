@@ -81,8 +81,6 @@ RenderErrorType render(char *srcfile, char *dstdir, RenderError *err) {
     write_css(res_reset_css, res_reset_css_len, "reset.css", dstdir);
     write_css(res_style_css, res_style_css_len, "style.css", dstdir);
 
-    // extract_defines(node);
-
     gen_html(node, srcfile, nlines, html_filep);
     fclose(html_filep);
     pool_close();
