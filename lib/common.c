@@ -35,6 +35,8 @@ void *pool_alloc_align(size_t size, size_t align) {
 
     assert(aligned_address + size <= (uintptr_t) pool_start + pool_size); // TODO: Grow if needed
 
+    memset((void *) aligned_address, 0, size);
+
     pool_current = (void *) (aligned_address + size);
     return (void *) aligned_address;
 }

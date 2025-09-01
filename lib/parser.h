@@ -30,20 +30,42 @@ struct NodeHeader {
 typedef struct NodeHeader NodeHeader;
 
 typedef enum {
-    UNKNOWN_DATA_TYPE,
-    INT_TYPE,
+    UNKNOWN_PRIMITIVE_TYPE,
+    CHAR_TYPE, INT_TYPE, SHORT_TYPE, LONG_TYPE, FLOAT_TYPE, DOUBLE_TYPE, VOID_TYPE,
     DATA_TYPE_COUNT
 } PrimitiveDataType;
 
+typedef enum {
+    NO_POINTER_TYPE,
+    POINTER_TYPE, POINTER_TO_POINTER_TYPE,
+} PointerType;
+
 typedef struct {
     PrimitiveDataType primitive;
+    PointerType pointer;
     Token *start_token;
     Token *end_token;
 } DataType;
 
 typedef struct {
+    NodeHeader header;
+    Token *varname;
+    NodeHeader *expr;
+    Token *equal_sign;
+} Assignment;
+
+typedef struct {
+    NodeHeader header;
+    bool var_arg;
+    DataType *data_type;
+    Token *id;
+    Assignment *assign;
+} Declaration;
+
+typedef struct {
     Token *name;
     DataType *return_type;
+    Declaration *last_param;
 } FuncSignature;
 
 typedef struct {
@@ -88,20 +110,6 @@ typedef struct {
     NodeHeader header;
     NodeHeader *expr;
 } ReturnStatement;
-
-typedef struct {
-    NodeHeader header;
-    Token *varname;
-    NodeHeader *expr;
-    Token *equal_sign;
-} Assignment;
-
-typedef struct {
-    NodeHeader header;
-    DataType *data_type;
-    Token *varname;
-    Assignment *assign;
-} Declaration;
 
 typedef struct {
     NodeHeader header;

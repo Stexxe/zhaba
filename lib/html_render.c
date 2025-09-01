@@ -4,6 +4,8 @@
 #include "html_writer.h"
 
 static void write_statements(HtmlHandle *html, NodeHeader *last);
+static void write_params(HtmlHandle *html, Declaration *last_param);
+static void write_decl(HtmlHandle *html, Declaration *decl);
 static void write_statement(HtmlHandle *html, NodeHeader *st);
 
 static void write_head(HtmlHandle *html, char *filename) {
@@ -65,6 +67,41 @@ static void write_token_spanc(HtmlHandle *html, Token *tokenp, Token *end_token,
     html_close_tag(html);
 }
 
+static void write_params(HtmlHandle *html, Declaration *last_param) {
+    NodeHeader *head = last_param->header.next;
+    NodeHeader *param = head;
+
+    for (param = param->next; param != head; param = param->next) {
+        write_decl(html, (Declaration *)param);
+        if (param->next != head) write_token_span(html, param->end_token, param->next->start_token);
+    }
+}
+
+static void write_decl(HtmlHandle *html, Declaration *decl) {
+    if (decl->var_arg) {
+        write_token_span(html, decl->header.start_token, decl->header.end_token);
+        return;
+    }
+
+    for (Token *t = decl->data_type->start_token; t != decl->data_type->end_token; t = t->next) {
+        if (t->type == KEYWORD_TOKEN) {
+            write_token_spanc(html, t, t->next, "keyword");
+        } else {
+            write_token_span(html, t, t->next);
+        }
+    }
+
+    write_ws(html, decl->data_type->end_token);
+    write_token_span(html, decl->id, decl->id->next);
+    write_ws_after(html, decl->id);
+
+    if (decl->assign != NULL) {
+        write_token_span(html, decl->assign->equal_sign, decl->assign->equal_sign->next);
+        write_ws_after(html, decl->assign->equal_sign);
+        write_statement(html, decl->assign->expr);
+    }
+}
+
 static void write_statements(HtmlHandle *html, NodeHeader *last) {
     NodeHeader *head = last->next;
     NodeHeader *st = head;
@@ -110,17 +147,7 @@ static void write_statement(HtmlHandle *html, NodeHeader *st) {
             write_token_spanc(html, literal->num, literal->num->next, "num");
         } break;
         case DECLARATION: {
-            Declaration *decl = (Declaration*) st;
-            write_token_spanc(html, decl->data_type->start_token, decl->data_type->end_token, "keyword");
-            write_ws(html, decl->data_type->end_token);
-            write_token_span(html, decl->varname, decl->varname->next);
-            write_ws_after(html, decl->varname);
-
-            if (decl->assign != NULL) {
-                write_token_span(html, decl->assign->equal_sign, decl->assign->equal_sign->next);
-                write_ws_after(html, decl->assign->equal_sign);
-                write_statement(html, decl->assign->expr);
-            }
+            write_decl(html, (Declaration *) st);
         } break;
         case IF_STATEMENT: {
             IfStatement *ifst = (IfStatement *) st;
@@ -184,7 +211,12 @@ static void write_code(HtmlHandle *html, NodeHeader *node) {
             write_token_spanc(html, return_type->start_token, return_type->end_token, "keyword");
             write_ws(html, return_type->end_token);
             write_token_spanc(html, def->signature->name, def->signature->name->next, "func-name");
-            write_token_span(html, def->signature->name->next, def->last_stmt->next->start_token);
+            Declaration *last_param = def->signature->last_param;
+            Declaration *head_param = (Declaration *) last_param->header.next;
+            write_token_span(html, def->signature->name->next, head_param->header.next->start_token);
+
+            write_params(html, last_param);
+            write_token_span(html, last_param->header.end_token, def->last_stmt->next->start_token);
 
             write_statements(html, def->last_stmt);
             write_token_span(html, def->last_stmt->end_token, def->header.end_token);

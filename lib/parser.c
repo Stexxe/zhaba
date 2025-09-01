@@ -1,15 +1,28 @@
 #include "parser.h"
 #include <assert.h>
+#include <string.h>
 
 #include "prep.h"
 
-static char *primitive_types[] = {
-    "double", "char", "float", "int", "long", "short"
+typedef struct {
+    char *name;
+    PrimitiveDataType type;
+} Primitive;
+
+static Primitive primitive_types[] = {
+    (Primitive){"double", DOUBLE_TYPE},
+    (Primitive){"char", CHAR_TYPE},
+    (Primitive){"float", FLOAT_TYPE},
+    (Primitive){"int", INT_TYPE},
+    (Primitive){"long", LONG_TYPE},
+    (Primitive){"short", SHORT_TYPE},
+    (Primitive){"void", VOID_TYPE},
 };
 
 #define PRIMITIVE_COUNT (sizeof(primitive_types) / sizeof(primitive_types[0]))
 
 static void skip_token(TokenType token_type);
+static void skip_white();
 static void next_token();
 static Token *nonws_token();
 static FuncSignature *parse_func_signature();
@@ -23,6 +36,7 @@ static ReturnStatement *parse_return();
 static Declaration *parse_decl();
 static Assignment *parse_assign();
 static IfStatement *parse_if();
+static int binsearch_primitive(Span, Primitive *, size_t);
 
 static Token *token;
 static NodeHeader *first_element = NULL, *element = NULL;
@@ -112,15 +126,40 @@ static void skip_token(TokenType token_type) {
     next_token();
 }
 
+static void skip_white() {
+    if (token && token->type == WHITESPACE_TOKEN) token = token->next;
+}
+
 static DataType *parse_data_type() {
     DataType *data_type = pool_alloc(sizeof(DataType), DataType);
     data_type->start_token = nonws_token();
-    if (spanstrcmp(nonws_token()->span, "int") == 0) { // TODO: Lookup
-        data_type->primitive = INT_TYPE;
+    data_type->primitive = UNKNOWN_PRIMITIVE_TYPE;
+
+    int i;
+    if ((i = binsearch_primitive(data_type->start_token->span, primitive_types, PRIMITIVE_COUNT)) >= 0) {
+        data_type->primitive = primitive_types[i].type;
     }
 
     next_token();
-    data_type->end_token = token;
+    Token *end_token = token;
+    skip_white();
+
+    data_type->pointer = NO_POINTER_TYPE;
+    if (token->type == STAR_TOKEN) {
+        data_type->pointer = POINTER_TYPE;
+        next_token();
+        end_token = token;
+    }
+
+    skip_white();
+    if (nonws_token()->type == STAR_TOKEN) {
+        data_type->pointer = POINTER_TO_POINTER_TYPE;
+        next_token();
+        end_token = token;
+    }
+
+    data_type->end_token = end_token;
+    token = end_token;
 
     return data_type;
 }
@@ -131,11 +170,29 @@ static FuncSignature *parse_func_signature() {
     skip_token(IDENTIFIER_TOKEN);
 
     skip_token(OPEN_PAREN_TOKEN);
+
+    Declaration *stub = pool_alloc_struct(Declaration);
+    stub->header = (NodeHeader) {STUB, nonws_token(), nonws_token()};
+
+    Declaration *param, *prev;
+    param = prev = stub;
+
+    while (nonws_token()->type != CLOSE_PAREN_TOKEN) {
+        param = parse_decl();
+        prev->header.next = (NodeHeader *) param;
+        if (nonws_token()->type == COMMA_TOKEN) skip_token(COMMA_TOKEN);
+
+        prev = param;
+    }
+
+    param->header.next = (NodeHeader *) stub;
+
     skip_token(CLOSE_PAREN_TOKEN);
 
     FuncSignature *signature = pool_alloc(sizeof(FuncSignature), FuncSignature);
     signature->name = name;
     signature->return_type = type;
+    signature->last_param = param;
     return signature;
 }
 
@@ -162,7 +219,7 @@ static NodeHeader *parse_statement() {
             // skip_white();
 
             if (nonws_token()->type == EQUAL_SIGN_TOKEN) {
-                token = decl->varname;
+                token = decl->id;
                 decl->assign = parse_assign();
             }
 
@@ -223,16 +280,21 @@ static ReturnStatement *parse_return() {
 static Declaration *parse_decl() {
     Token *start = nonws_token();
     Declaration *decl = pool_alloc_struct(Declaration);
-    DataType *type = parse_data_type();
-    // skip_white();
-    Token *varname = nonws_token();
+    decl->var_arg = false;
 
-    skip_token(IDENTIFIER_TOKEN);
+    if (nonws_token()->type == ELLIPSIS_TOKEN) {
+        decl->var_arg = true;
+        skip_token(ELLIPSIS_TOKEN);
+    } else {
+        DataType *type = parse_data_type();
+        decl->id = nonws_token();
+        decl->data_type = type;
+        decl->assign = NULL;
 
-    decl->header = (NodeHeader) {DECLARATION, start};
-    decl->data_type = type;
-    decl->varname = varname;
-    decl->assign = NULL;
+        skip_token(IDENTIFIER_TOKEN);
+    }
+
+    decl->header = (NodeHeader) {DECLARATION, start, token};
 
     return decl;
 }
@@ -348,7 +410,6 @@ static NodeHeader *parse_expr() {
 
 static NodeHeader *parse_block() {
     skip_token(OPEN_CURLY_TOKEN);
-    // skip_white();
 
     NodeHeader *stub = pool_alloc_struct(NodeHeader);
     stub->type = STUB;
@@ -361,9 +422,7 @@ static NodeHeader *parse_block() {
     while (nonws_token()->type != CLOSE_CURLY_TOKEN) {
         st = parse_statement();
         prev->next = st;
-        // skip_white();
         if (nonws_token()->type == SEMICOLON_TOKEN) skip_token(SEMICOLON_TOKEN);
-        // skip_white();
 
         prev = st;
     }
@@ -374,3 +433,22 @@ static NodeHeader *parse_block() {
     return st;
 }
 
+static int binsearch_primitive(Span target, Primitive *arr, size_t size) {
+    int low = 0;
+    int high = size - 1;
+    int comp;
+
+    while (low <= high) {
+        int mid = (low + high) / 2;
+
+        if ((comp = spanstrcmp(target, arr[mid].name)) < 0) {
+            high = mid - 1;
+        } else if (comp > 0) {
+            low = mid + 1;
+        } else {
+            return mid;
+        }
+    }
+
+    return -1;
+}

@@ -142,8 +142,24 @@ Token *tokenize(byte *buf, size_t bufsize, int *nlines, LexerError *err) {
             insert_token(CLOSE_CURLY_TOKEN, (Span){lex->pos - 1, lex->pos});
         } else if (c == '=') {
             insert_token(EQUAL_SIGN_TOKEN, (Span){lex->pos - 1, lex->pos});
-        }  else if (c == '>') {
+        } else if (c == '>') {
             insert_token(GREATER_TOKEN, (Span){lex->pos - 1, lex->pos});
+        } else if (c == '*') {
+            insert_token(STAR_TOKEN, (Span){lex->pos - 1, lex->pos});
+        } else if (c == '.') {
+            byte *start = lex->pos - 1;
+            if (read(lex) == '.') {
+                if (read(lex) == '.') {
+                    insert_token(ELLIPSIS_TOKEN, (Span){start, lex->pos});
+                    continue;
+                } else {
+                    lex->pos--;
+                }
+            } else {
+                lex->pos--;
+            }
+
+            insert_token(DOT_TOKEN, (Span){lex->pos - 1, lex->pos});
         } else if (isspace(c)) {
             lex->pos--;
             insert_token(WHITESPACE_TOKEN, read_spaces(lex));
