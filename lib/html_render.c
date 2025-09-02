@@ -178,6 +178,11 @@ static void write_statement(HtmlHandle *html, NodeHeader *st) {
                 write_token_span(html, ifst->else_statement->end_token, ifst->header.end_token);
             }
         } break;
+        case UNARY_OP: {
+            UnaryOp *op = (UnaryOp *) st;
+            write_token_span(html, op->header.start_token, op->expr->start_token);
+            write_statement(html, op->expr);
+        } break;
         case BINARY_OP: {
             BinaryOp *op = (BinaryOp *) st;
             write_statement(html, op->lhs);

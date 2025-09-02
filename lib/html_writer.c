@@ -173,6 +173,9 @@ void html_write_token(struct HtmlHandle *h, Token *t) {
             case '>': {
                 html_write_text_raw(h, "&gt;");
             } break;
+            case '&': {
+                html_write_text_raw(h, "&amp;");
+            } break;
             default: {
                 fputc(c, h->filep);
             } break;

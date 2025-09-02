@@ -30,9 +30,17 @@ static TokenType binary_operations[] = {
 
 #define BINARY_OP_COUNT (sizeof(binary_operations) / sizeof(binary_operations[0]))
 
+// TODO: Sort once
+static TokenType unary_operations[] = {
+    AMPERSAND_TOKEN, STAR_TOKEN
+};
+
+#define UNARY_OP_COUNT (sizeof(unary_operations) / sizeof(unary_operations[0]))
+
 static void skip_token(TokenType token_type);
 static void skip_white();
 static void next_token();
+static bool is_next_skipws(TokenType token_type);
 static Token *nonws_token();
 static FuncSignature *parse_func_signature();
 static DataType *parse_data_type();
@@ -133,6 +141,11 @@ static void next_token() {
 static void skip_token(TokenType token_type) {
     assert(nonws_token()->type == token_type);
     next_token();
+}
+
+static bool is_next_skipws(TokenType token_type) {
+    Token *next = token->next;
+    return token_type == (next->type == WHITESPACE_TOKEN ? next->next : next)->type;
 }
 
 static void skip_white() {
@@ -236,19 +249,10 @@ static NodeHeader *parse_statement() {
         } else if (spanstrcmp(nonws_token()->span, "if") == 0) {
             NodeHeader *ifcond = (NodeHeader *) parse_if();
             return ifcond;
-        } /*else if (binsearch_span(nonws_token()->span, primitive_types, PRIMITIVE_COUNT) >= 0) {
+        } else {
             Declaration *decl = parse_decl();
-            // skip_white();
-
-            if (nonws_token()->type == EQUAL_TOKEN) {
-                token = decl->id;
-                decl->assign = parse_assign();
-            }
-
-            decl->header.end_token = nonws_token();
-
             return (NodeHeader *) decl;
-        }*/
+        }
     } else {
         return parse_expr();
     }
@@ -259,9 +263,7 @@ static NodeHeader *parse_statement() {
 static FuncInvoke *parse_func_invoke() {
     Token *name = nonws_token();
     skip_token(IDENTIFIER_TOKEN);
-    // skip_white();
     skip_token(OPEN_PAREN_TOKEN);
-    // skip_white();
 
     NodeHeader *first_expr = NULL, *prev, *expr;
 
@@ -310,9 +312,12 @@ static Declaration *parse_decl() {
         DataType *type = parse_data_type();
         decl->id = nonws_token();
         decl->data_type = type;
-        decl->assign = NULL;
 
-        skip_token(IDENTIFIER_TOKEN);
+        if (is_next_skipws(EQUAL_TOKEN)) {
+            decl->assign = parse_assign();
+        } else {
+            skip_token(IDENTIFIER_TOKEN);
+        }
     }
 
     decl->header = (NodeHeader) {DECLARATION, start, token};
@@ -425,6 +430,17 @@ static NodeHeader *parse_expr_lazy() {
 
 static NodeHeader *parse_expr() {
     Token *start = nonws_token();
+
+    if (binsearchi(nonws_token()->type, (int *) unary_operations, UNARY_OP_COUNT) >= 0) {
+        UnaryOp *op = pool_alloc_struct(UnaryOp);
+        start = nonws_token();
+        next_token();
+        nonws_token();
+        op->expr = parse_expr();
+        op->header = (NodeHeader) {UNARY_OP, start, token};
+        return (NodeHeader *) op;
+    }
+
     NodeHeader *lhs = parse_expr_lazy();
     Token *after_expr = token;
 

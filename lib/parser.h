@@ -13,6 +13,7 @@ typedef enum {
     DECLARATION, ASSIGNMENT,
     VAR_REFERENCE, DEFINE_REFERENCE,
     ARRAY_ACCESS,
+    UNARY_OP,
     BINARY_OP,
     IF_STATEMENT,
     STUB,
@@ -128,6 +129,11 @@ typedef struct {
     NodeHeader header;
     NodeHeader *expr;
 } DefineReference;
+
+typedef struct {
+    NodeHeader header;
+    NodeHeader *expr;
+} UnaryOp;
 
 typedef struct {
     NodeHeader header;
