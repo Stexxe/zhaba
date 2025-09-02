@@ -236,7 +236,7 @@ static NodeHeader *parse_statement() {
         } else if (spanstrcmp(nonws_token()->span, "if") == 0) {
             NodeHeader *ifcond = (NodeHeader *) parse_if();
             return ifcond;
-        } else if (binsearch_span(nonws_token()->span, primitive_types, PRIMITIVE_COUNT) >= 0) {
+        } /*else if (binsearch_span(nonws_token()->span, primitive_types, PRIMITIVE_COUNT) >= 0) {
             Declaration *decl = parse_decl();
             // skip_white();
 
@@ -248,7 +248,7 @@ static NodeHeader *parse_statement() {
             decl->header.end_token = nonws_token();
 
             return (NodeHeader *) decl;
-        }
+        }*/
     } else {
         return parse_expr();
     }
@@ -269,10 +269,7 @@ static FuncInvoke *parse_func_invoke() {
         if (nonws_token()->type == CLOSE_PAREN_TOKEN) break;
 
         expr = parse_expr();
-        // skip_white();
-
         if (nonws_token()->type == COMMA_TOKEN) skip_token(COMMA_TOKEN);
-        // skip_white();
 
         if (first_expr == NULL) first_expr = expr;
         else prev->next = expr;
@@ -377,7 +374,7 @@ static IfStatement *parse_if() {
 static NodeHeader *parse_expr_lazy() {
     if (nonws_token()->type == S_CHAR_SEQ_TOKEN) {
         StringLiteral *literal = pool_alloc_struct(StringLiteral);
-        literal->header = (NodeHeader) {STRING_LITERAL, token, nonws_token()->next};
+        literal->header = (NodeHeader) {STRING_LITERAL, token, token->next};
         literal->str = nonws_token();
 
         next_token();
@@ -385,7 +382,7 @@ static NodeHeader *parse_expr_lazy() {
         return (NodeHeader *) literal;
     } else if (nonws_token()->type == NUM_LITERAL_TOKEN) {
         IntLiteral *literal = pool_alloc_struct(IntLiteral);
-        literal->header = (NodeHeader) {INT_LITERAL, token, nonws_token()->next};
+        literal->header = (NodeHeader) {INT_LITERAL, token, token->next};
         literal->num = nonws_token();
 
         next_token();
@@ -397,17 +394,28 @@ static NodeHeader *parse_expr_lazy() {
         NodeHeader *node;
         if ((def_expr = prep_define_get(define_table, token->span)) != NULL) {
             DefineReference *ref = pool_alloc_struct(DefineReference);
-            ref->header = (NodeHeader) {DEFINE_REFERENCE, token, nonws_token()->next};
+            ref->header = (NodeHeader) {DEFINE_REFERENCE, token, token->next};
             ref->expr = def_expr;
             node = (NodeHeader *) ref;
+            next_token();
+        } else if (token->next->type == OPEN_BRACKET_TOKEN) {
+            ArrAccess *access = pool_alloc_struct(ArrAccess);
+            access->id = token;
+            next_token();
+            skip_token(OPEN_BRACKET_TOKEN);
+            nonws_token();
+            access->index_expr = parse_expr();
+            nonws_token();
+            skip_token(CLOSE_BRACKET_TOKEN);
+            access->header = (NodeHeader) {ARRAY_ACCESS, access->id, token};
+            node = (NodeHeader *) access;
         } else {
             VarReference *ref = pool_alloc_struct(VarReference);
-            ref->header = (NodeHeader) {VAR_REFERENCE, token, nonws_token()->next};
-            ref->varname = nonws_token();
+            ref->header = (NodeHeader) {VAR_REFERENCE, token, token->next};
+            ref->id = nonws_token();
             node = (NodeHeader *) ref;
+            next_token();
         }
-
-        next_token();
 
         return node;
     }

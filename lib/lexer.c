@@ -136,10 +136,14 @@ Token *tokenize(byte *buf, size_t bufsize, int *nlines, LexerError *err) {
             insert_token(COMMA_TOKEN, (Span){lex->pos - 1, lex->pos});
         } else if (c == '{') {
             insert_token(OPEN_CURLY_TOKEN, (Span){lex->pos - 1, lex->pos});
-        } else if (c == ';') {
-            insert_token(SEMICOLON_TOKEN, (Span){lex->pos - 1, lex->pos});
         } else if (c == '}') {
             insert_token(CLOSE_CURLY_TOKEN, (Span){lex->pos - 1, lex->pos});
+        } else if (c == '[') {
+            insert_token(OPEN_BRACKET_TOKEN, (Span){lex->pos - 1, lex->pos});
+        } else if (c == ']') {
+            insert_token(CLOSE_BRACKET_TOKEN, (Span){lex->pos - 1, lex->pos});
+        } else if (c == ';') {
+            insert_token(SEMICOLON_TOKEN, (Span){lex->pos - 1, lex->pos});
         } else if (c == '!') {
             byte *start = lex->pos - 1;
             if (read(lex) == '=') {

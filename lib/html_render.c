@@ -166,7 +166,7 @@ static void write_statement(HtmlHandle *html, NodeHeader *st) {
             write_token_span(html, ifst->header.start_token->next, ifst->cond->start_token);
             write_statement(html, ifst->cond);
 
-            write_token_span(html, ifst->cond->end_token, ifst->then_statement->start_token);
+            write_token_span(html, ifst->cond->end_token, ifst->then_statement->next->start_token);
             write_statements(html, ifst->then_statement);
 
             write_token_span(html, ifst->then_statement->end_token, ifst->else_token ? ifst->else_token : ifst->header.end_token);
@@ -186,11 +186,18 @@ static void write_statement(HtmlHandle *html, NodeHeader *st) {
         } break;
         case VAR_REFERENCE: {
             VarReference *ref = (VarReference *) st;
-            write_token_span(html, ref->varname, ref->varname->next);
+            write_token_span(html, ref->id, ref->id->next);
         } break;
         case DEFINE_REFERENCE: {
             DefineReference *ref = (DefineReference *) st;
             write_token_spanc(html, ref->header.start_token, ref->header.end_token, "prepid");
+        } break;
+        case ARRAY_ACCESS: {
+            ArrAccess *access = (ArrAccess *) st;
+            write_token_span(html, access->id, access->id->next);
+            write_token_span(html, access->id->next, access->index_expr->start_token);
+            write_statement(html, access->index_expr);
+            write_token_span(html, access->index_expr->end_token, access->header.end_token);
         } break;
         default: {
             assert(0);

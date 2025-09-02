@@ -12,6 +12,7 @@ typedef enum {
     STRING_LITERAL, INT_LITERAL,
     DECLARATION, ASSIGNMENT,
     VAR_REFERENCE, DEFINE_REFERENCE,
+    ARRAY_ACCESS,
     BINARY_OP,
     IF_STATEMENT,
     STUB,
@@ -114,8 +115,14 @@ typedef struct {
 
 typedef struct {
     NodeHeader header;
-    Token *varname;
+    Token *id;
 } VarReference;
+
+typedef struct {
+    NodeHeader header;
+    Token *id;
+    NodeHeader *index_expr;
+} ArrAccess;
 
 typedef struct {
     NodeHeader header;
