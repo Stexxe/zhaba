@@ -16,6 +16,7 @@ typedef enum {
     UNARY_OP,
     BINARY_OP,
     LABEL_DECL,
+    STRUCT_DECL,
     IF_STATEMENT, GOTO_STATEMENT,
     STUB,
     RETURN_STATEMENT,
@@ -109,6 +110,12 @@ typedef struct {
     NodeHeader header;
     Token *num;
 } IntLiteral;
+
+typedef struct {
+    NodeHeader header;
+    Token *id;
+    Declaration *last_decl;
+} StructDecl;
 
 typedef struct {
     NodeHeader header;

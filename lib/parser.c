@@ -25,7 +25,7 @@ static Primitive primitive_types[] = {
 static TokenType binary_operations[] = {
     NOT_EQUAL_TOKEN, DOUBLE_EQUAL_TOKEN,
     GREATER_TOKEN, GREATER_OR_EQUAL_TOKEN,
-    LESSER_TOKEN, LESSER_OR_EQUAL_TOKEN,
+    LESSER_TOKEN, LESSER_OR_EQUAL_TOKEN, MINUS_TOKEN,
 };
 
 #define BINARY_OP_COUNT (sizeof(binary_operations) / sizeof(binary_operations[0]))
@@ -56,6 +56,8 @@ static NodeHeader *parse_func_body();
 static NodeHeader *parse_statement();
 static FuncInvoke *parse_func_invoke();
 static NodeHeader *parse_expr();
+static StructDecl *parse_struct_decl();
+static Declaration *parse_decl_block();
 static ReturnStatement *parse_return();
 static GotoStatement *parse_goto();
 static LabelDecl *parse_label();
@@ -126,17 +128,24 @@ NodeHeader *parse(Token *first_token) {
             } break;
             case KEYWORD_TOKEN: {
                 start_token = nonws_token();
-                FuncSignature *sign = parse_func_signature();
 
-                if (nonws_token()->type == SEMICOLON_TOKEN) { // Func declaration
+                if (spanstrcmp(token->span, "struct") == 0) {
+                    insert((NodeHeader *) parse_struct_decl());
+                    nonws_token();
+                    skip_token(SEMICOLON_TOKEN);
+                } else {
+                    FuncSignature *sign = parse_func_signature();
 
-                } else if (nonws_token()->type == OPEN_CURLY_TOKEN) { // Func definition
-                    NodeHeader *first_statement = parse_func_body();
-                    FuncDef *def = pool_alloc_struct(FuncDef);
-                    def->header = (NodeHeader) {FUNC_DEF, start_token, token};
-                    def->signature = sign;
-                    def->last_stmt = first_statement;
-                    insert((NodeHeader *)def);
+                    if (nonws_token()->type == SEMICOLON_TOKEN) { // Func declaration
+
+                    } else if (nonws_token()->type == OPEN_CURLY_TOKEN) { // Func definition
+                        NodeHeader *first_statement = parse_func_body();
+                        FuncDef *def = pool_alloc_struct(FuncDef);
+                        def->header = (NodeHeader) {FUNC_DEF, start_token, token};
+                        def->signature = sign;
+                        def->last_stmt = first_statement;
+                        insert((NodeHeader *)def);
+                    }
                 }
             } break;
             default: {
@@ -326,10 +335,22 @@ static GotoStatement *parse_goto() {
     return got;
 }
 
+static StructDecl *parse_struct_decl() {
+    Token *start = token;
+    skip_token(KEYWORD_TOKEN);
+
+    StructDecl *decl = pool_alloc_struct(StructDecl);
+    decl->id = nonws_token();
+    skip_token(IDENTIFIER_TOKEN);
+    nonws_token();
+
+    decl->last_decl = parse_decl_block();
+    decl->header = (NodeHeader) {STRUCT_DECL, start, token};
+}
+
 static ReturnStatement *parse_return() {
     Token *start = nonws_token();
     skip_token(KEYWORD_TOKEN);
-    // skip_white();
 
     ReturnStatement *ret = pool_alloc_struct(ReturnStatement);
     NodeHeader *expr = parse_expr();
@@ -493,6 +514,32 @@ static NodeHeader *parse_expr() {
         token = after_expr;
         return lhs;
     }
+}
+
+static Declaration *parse_decl_block() {
+    skip_token(OPEN_CURLY_TOKEN);
+
+    Declaration *stub = pool_alloc_struct(Declaration);
+    stub->header = (NodeHeader) {STUB, nonws_token(), nonws_token()};
+    // stub->type = STUB;
+    // stub->start_token = nonws_token();
+    // stub->end_token = nonws_token();
+
+    Declaration *decl, *prev;
+    decl = prev = stub;
+
+    while (nonws_token()->type != CLOSE_CURLY_TOKEN) {
+        decl = parse_decl();
+        prev->header.next = (NodeHeader *) decl;
+        if (nonws_token()->type == SEMICOLON_TOKEN) skip_token(SEMICOLON_TOKEN);
+
+        prev = decl;
+    }
+
+    skip_token(CLOSE_CURLY_TOKEN);
+    decl->header.next = (NodeHeader *) stub;
+
+    return decl;
 }
 
 static NodeHeader *parse_block() {

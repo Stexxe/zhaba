@@ -148,33 +148,44 @@ Token *tokenize(byte *buf, size_t bufsize, int *nlines, LexerError *err) {
             insert_token(COLON_TOKEN, (Span){lex->pos - 1, lex->pos});
         } else if (c == ';') {
             insert_token(SEMICOLON_TOKEN, (Span){lex->pos - 1, lex->pos});
+        } else if (c == '-') {
+            byte *start = lex->pos - 1;
+            char next = read(lex);
+
+            if (next == '=') {
+                insert_token(MINUS_EQUAL_TOKEN, (Span){start, lex->pos});
+            } else if (next == '>') {
+                insert_token(ARROW_TOKEN, (Span){start, lex->pos});
+            } else {
+                insert_token(MINUS_TOKEN, (Span){start, lex->pos-1});
+            }
         } else if (c == '!') {
             byte *start = lex->pos - 1;
             if (read(lex) == '=') {
                 insert_token(NOT_EQUAL_TOKEN, (Span){start, lex->pos});
             } else {
-                insert_token(NOT_TOKEN, (Span){start, lex->pos});
+                insert_token(NOT_TOKEN, (Span){start, lex->pos-1});
             }
         } else if (c == '=') {
             byte *start = lex->pos - 1;
             if (read(lex) == '=') {
                 insert_token(DOUBLE_EQUAL_TOKEN, (Span){start, lex->pos});
             } else {
-                insert_token(EQUAL_TOKEN, (Span){start, lex->pos});
+                insert_token(EQUAL_TOKEN, (Span){start, lex->pos-1});
             }
         } else if (c == '<') {
             byte *start = lex->pos - 1;
             if (read(lex) == '=') {
                 insert_token(LESSER_OR_EQUAL_TOKEN, (Span){start, lex->pos});
             } else {
-                insert_token(LESSER_TOKEN, (Span){start, lex->pos});
+                insert_token(LESSER_TOKEN, (Span){start, lex->pos-1});
             }
         } else if (c == '>') {
             byte *start = lex->pos - 1;
             if (read(lex) == '=') {
                 insert_token(GREATER_OR_EQUAL_TOKEN, (Span){start, lex->pos});
             } else {
-                insert_token(GREATER_TOKEN, (Span){start, lex->pos});
+                insert_token(GREATER_TOKEN, (Span){start, lex->pos-1});
             }
         } else if (c == '*') {
             insert_token(STAR_TOKEN, (Span){lex->pos - 1, lex->pos});
