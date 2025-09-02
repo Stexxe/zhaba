@@ -37,6 +37,13 @@ static TokenType unary_operations[] = {
 
 #define UNARY_OP_COUNT (sizeof(unary_operations) / sizeof(unary_operations[0]))
 
+typedef NodeHeader *(*ParseFunc)(void);
+
+typedef struct {
+    char *keyword;
+    ParseFunc parse;
+} KeywordParser;
+
 static void skip_token(TokenType token_type);
 static void skip_white();
 static void next_token();
@@ -50,10 +57,22 @@ static NodeHeader *parse_statement();
 static FuncInvoke *parse_func_invoke();
 static NodeHeader *parse_expr();
 static ReturnStatement *parse_return();
+static GotoStatement *parse_goto();
+static LabelDecl *parse_label();
 static Declaration *parse_decl();
 static Assignment *parse_assign();
 static IfStatement *parse_if();
 static int binsearch_primitive(Span, Primitive *, size_t);
+static int binsearch_parser(Span target, KeywordParser *arr, size_t size);
+
+// TODO: Sort once
+static KeywordParser keyword_parsers[] = {
+    (KeywordParser) {"if", (ParseFunc) parse_if},
+    (KeywordParser) {"goto", (ParseFunc) parse_goto},
+    (KeywordParser) {"return", (ParseFunc) parse_return},
+};
+
+#define KEYWORD_PARSER_COUNT (sizeof(keyword_parsers) / sizeof(keyword_parsers[0]))
 
 static Token *token;
 static NodeHeader *first_element = NULL, *element = NULL;
@@ -234,21 +253,18 @@ static NodeHeader *parse_func_body() {
 
 static NodeHeader *parse_statement() {
     if (nonws_token()->type == IDENTIFIER_TOKEN) {
-        if (nonws_token()->next->type == OPEN_PAREN_TOKEN) {
-            NodeHeader *invoke_expr = (NodeHeader *) parse_func_invoke();
-            return invoke_expr;
+        if (is_next_skipws(OPEN_PAREN_TOKEN)) {
+            return (NodeHeader *) parse_func_invoke();
+        } else if (is_next_skipws(COLON_TOKEN)) {
+            return (NodeHeader *) parse_label();
         } else {
-            Declaration *decl = parse_decl();
-            return (NodeHeader *) decl;
+            return (NodeHeader *) parse_decl();
         }
     } else if (nonws_token()->type == KEYWORD_TOKEN) {
-        // TODO: Table lookup
-        if (spanstrcmp(nonws_token()->span, "return") == 0) {
-            NodeHeader *ret = (NodeHeader *) parse_return();
-            return ret;
-        } else if (spanstrcmp(nonws_token()->span, "if") == 0) {
-            NodeHeader *ifcond = (NodeHeader *) parse_if();
-            return ifcond;
+        int i;
+
+        if ((i = binsearch_parser(nonws_token()->span, keyword_parsers, KEYWORD_PARSER_COUNT)) >= 0) {
+            return keyword_parsers[i].parse();
         } else {
             Declaration *decl = parse_decl();
             return (NodeHeader *) decl;
@@ -286,6 +302,28 @@ static FuncInvoke *parse_func_invoke() {
     invoke->name = name;
     invoke->arg = first_expr;
     return invoke;
+}
+
+static LabelDecl *parse_label() {
+    Token *start = token;
+
+    LabelDecl *label = pool_alloc_struct(LabelDecl);
+    label->label = token;
+    skip_token(IDENTIFIER_TOKEN);
+    nonws_token();
+    skip_token(COLON_TOKEN);
+    label->header = (NodeHeader) {LABEL_DECL, start, token};
+    return label;
+}
+
+static GotoStatement *parse_goto() {
+    Token *start = token;
+    skip_token(KEYWORD_TOKEN);
+    GotoStatement *got = pool_alloc_struct(GotoStatement);
+    got->label = nonws_token();
+    skip_token(IDENTIFIER_TOKEN);
+    got->header = (NodeHeader) {GOTO_STATEMENT, start, token};
+    return got;
 }
 
 static ReturnStatement *parse_return() {
@@ -491,6 +529,26 @@ static int binsearch_primitive(Span target, Primitive *arr, size_t size) {
         int mid = (low + high) / 2;
 
         if ((comp = spanstrcmp(target, arr[mid].name)) < 0) {
+            high = mid - 1;
+        } else if (comp > 0) {
+            low = mid + 1;
+        } else {
+            return mid;
+        }
+    }
+
+    return -1;
+}
+
+static int binsearch_parser(Span target, KeywordParser *arr, size_t size) {
+    int low = 0;
+    int high = size - 1;
+    int comp;
+
+    while (low <= high) {
+        int mid = (low + high) / 2;
+
+        if ((comp = spanstrcmp(target, arr[mid].keyword)) < 0) {
             high = mid - 1;
         } else if (comp > 0) {
             low = mid + 1;

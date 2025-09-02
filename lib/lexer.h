@@ -13,6 +13,7 @@ typedef enum {
     S_CHAR_SEQ_TOKEN,
     KEYWORD_TOKEN,
     COMMA_TOKEN,
+    COLON_TOKEN,
     SEMICOLON_TOKEN,
     NUM_LITERAL_TOKEN,
     DOT_TOKEN, ELLIPSIS_TOKEN,
@@ -20,6 +21,7 @@ typedef enum {
     OPEN_CURLY_TOKEN, CLOSE_CURLY_TOKEN,
     OPEN_BRACKET_TOKEN, CLOSE_BRACKET_TOKEN,
     NOT_TOKEN, EQUAL_TOKEN,
+
     // unary operations
     AMPERSAND_TOKEN, STAR_TOKEN,
     // binary operations

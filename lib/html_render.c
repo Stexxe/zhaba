@@ -204,6 +204,14 @@ static void write_statement(HtmlHandle *html, NodeHeader *st) {
             write_statement(html, access->index_expr);
             write_token_span(html, access->index_expr->end_token, access->header.end_token);
         } break;
+        case GOTO_STATEMENT: {
+            GotoStatement *got = (GotoStatement *) st;
+            write_tokenc(html, got->header.start_token, "keyword");
+            write_token_span(html, got->header.start_token->next, got->header.end_token);
+        } break;
+        case LABEL_DECL: {
+            write_token_span(html, st->start_token, st->end_token);
+        } break;
         default: {
             assert(0);
         } break;

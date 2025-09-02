@@ -15,7 +15,8 @@ typedef enum {
     ARRAY_ACCESS,
     UNARY_OP,
     BINARY_OP,
-    IF_STATEMENT,
+    LABEL_DECL,
+    IF_STATEMENT, GOTO_STATEMENT,
     STUB,
     RETURN_STATEMENT,
     STATEMENT,
@@ -113,6 +114,16 @@ typedef struct {
     NodeHeader header;
     NodeHeader *expr;
 } ReturnStatement;
+
+typedef struct {
+    NodeHeader header;
+    Token *label;
+} LabelDecl;
+
+typedef struct {
+    NodeHeader header;
+    Token *label;
+} GotoStatement;
 
 typedef struct {
     NodeHeader header;
