@@ -47,7 +47,7 @@ char *pool_alloc_copy_str(char *str) {
     return as;
 }
 
-int binsearch(char *target, char *arr[], size_t size) {
+int binsearchs(char *target, char *arr[], size_t size) {
     int low = 0;
     int high = size - 1;
     int comp;
@@ -58,6 +58,25 @@ int binsearch(char *target, char *arr[], size_t size) {
         if ((comp = strcmp(target, arr[mid])) < 0) {
             high = mid - 1;
         } else if (comp > 0) {
+            low = mid + 1;
+        } else {
+            return mid;
+        }
+    }
+
+    return -1;
+}
+
+int binsearchi(int target, int arr[], size_t size) {
+    int low = 0;
+    int high = size - 1;
+
+    while (low <= high) {
+        int mid = (low + high) / 2;
+
+        if (target < arr[mid]) {
+            high = mid - 1;
+        } else if (target > arr[mid]) {
             low = mid + 1;
         } else {
             return mid;

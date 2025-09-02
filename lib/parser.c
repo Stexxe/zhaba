@@ -21,6 +21,7 @@ static Primitive primitive_types[] = {
 
 #define PRIMITIVE_COUNT (sizeof(primitive_types) / sizeof(primitive_types[0]))
 
+// TODO: Sort once
 static TokenType binary_operations[] = {
     NOT_EQUAL_TOKEN, DOUBLE_EQUAL_TOKEN,
     GREATER_TOKEN, GREATER_OR_EQUAL_TOKEN,
@@ -418,13 +419,14 @@ static NodeHeader *parse_expr() {
     Token *start = nonws_token();
     NodeHeader *lhs = parse_expr_lazy();
     Token *after_expr = token;
-    if (nonws_token()->type == GREATER_TOKEN) { // TODO: Check for other binary and unary operators tokens
+
+    if (binsearchi(nonws_token()->type, (int *) binary_operations, BINARY_OP_COUNT) >= 0) {
         next_token();
-        GreaterComp *comp = pool_alloc_struct(GreaterComp);
-        comp->lhs = lhs;
-        comp->rhs = parse_expr_lazy();
-        comp->header = (NodeHeader) {BINARY_OP, start, token};
-        return (NodeHeader *) comp;
+        BinaryOp *op = pool_alloc_struct(BinaryOp);
+        op->lhs = lhs;
+        op->rhs = parse_expr_lazy();
+        op->header = (NodeHeader) {BINARY_OP, start, token};
+        return (NodeHeader *) op;
     } else {
         token = after_expr;
         return lhs;

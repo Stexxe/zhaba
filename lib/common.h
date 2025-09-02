@@ -12,7 +12,8 @@ typedef struct {
 } Span;
 
 int binsearch_span(Span target, char *arr[], size_t size);
-int binsearch(char *target, char *arr[], size_t size);
+int binsearchs(char *target, char *arr[], size_t size);
+int binsearchi(int target, int arr[], size_t size);
 int spanstrcmp(Span sp, char *str);
 int spancmp(Span sp1, Span sp2);
 

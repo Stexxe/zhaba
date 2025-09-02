@@ -219,7 +219,7 @@ void html_read_content(HtmlReader *r, char *buf, int maxlen) {
             if (c == '>' || c == ' ') {
                 char old = *(buf-1);
                 *(buf-1) = '\0';
-                if (binsearch(open_tag, no_close_tags, NO_CLOSE_TAGS_SIZE) >= 0) {
+                if (binsearchs(open_tag, no_close_tags, NO_CLOSE_TAGS_SIZE) >= 0) {
                     count--;
                 }
 

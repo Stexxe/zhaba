@@ -109,7 +109,7 @@ void html_close_tag(struct HtmlHandle *h) {
 
     Tag *tag = pop(h);
 
-    if (binsearch(tag->name, no_close_tags, NO_CLOSE_TAGS_SIZE) < 0) {
+    if (binsearchs(tag->name, no_close_tags, NO_CLOSE_TAGS_SIZE) < 0) {
         fprintf(h->filep, "</%s>", tag->name);
     }
 }

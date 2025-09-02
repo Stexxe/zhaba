@@ -179,10 +179,10 @@ static void write_statement(HtmlHandle *html, NodeHeader *st) {
             }
         } break;
         case BINARY_OP: {
-            GreaterComp *comp = (GreaterComp *) st;
-            write_statement(html, comp->lhs);
-            write_token_span(html, comp->lhs->end_token, comp->rhs->start_token);
-            write_statement(html, comp->rhs);
+            BinaryOp *op = (BinaryOp *) st;
+            write_statement(html, op->lhs);
+            write_token_span(html, op->lhs->end_token, op->rhs->start_token);
+            write_statement(html, op->rhs);
         } break;
         case VAR_REFERENCE: {
             VarReference *ref = (VarReference *) st;
