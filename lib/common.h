@@ -2,6 +2,7 @@
 #define ZHABA_COMMON_H
 
 #include <stddef.h>
+#include <string.h>
 
 typedef unsigned char byte;
 typedef unsigned int uint;
@@ -31,6 +32,8 @@ typedef struct {
     void *ptr;
     size_t size;
 } Slice;
+
+int qsort_strcmp(const void *p1, const void *p2);
 
 char *path_basename_noext(char *);
 char *path_join(int, ...);

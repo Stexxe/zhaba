@@ -27,6 +27,7 @@ int main(int argc, char** argv) {
     }
 
     RenderError err;
+    lexer_init();
     RenderErrorType res = render(argv[1], outdir, &err);
 
     if (res < 0) {

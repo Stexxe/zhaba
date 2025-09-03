@@ -107,6 +107,63 @@ static char *lang_keywords[] = {
 static Token *first_token = NULL, *token = NULL;
 static int current_line, current_column;
 
+typedef struct {
+    char *token_str;
+    TokenType token_type;
+} SimpleTokenDef;
+
+static SimpleTokenDef simple_token_defs[] = {
+    (SimpleTokenDef){"(", OPEN_PAREN_TOKEN},
+    (SimpleTokenDef){")", CLOSE_PAREN_TOKEN},
+    (SimpleTokenDef){",", COMMA_TOKEN},
+    (SimpleTokenDef){"&", AMPERSAND_TOKEN},
+    (SimpleTokenDef){"(", OPEN_PAREN_TOKEN},
+    (SimpleTokenDef){")", CLOSE_PAREN_TOKEN},
+    (SimpleTokenDef){"{", OPEN_CURLY_TOKEN},
+    (SimpleTokenDef){"}", CLOSE_CURLY_TOKEN},
+    (SimpleTokenDef){"[", OPEN_BRACKET_TOKEN},
+    (SimpleTokenDef){"]", CLOSE_BRACKET_TOKEN},
+    (SimpleTokenDef){":", COLON_TOKEN},
+    (SimpleTokenDef){";", SEMICOLON_TOKEN},
+    (SimpleTokenDef){"-", MINUS_TOKEN},
+    (SimpleTokenDef){"-=", MINUS_EQUAL_TOKEN},
+    (SimpleTokenDef){"->", ARROW_TOKEN},
+    (SimpleTokenDef){"--", DECREMENT_TOKEN},
+    (SimpleTokenDef){"/", DIVISION_TOKEN},
+    (SimpleTokenDef){"//", LINE_COMMENT_TOKEN},
+    (SimpleTokenDef){"/*", OPEN_MULTI_COMMENT_TOKEN},
+    (SimpleTokenDef){"!", NOT_TOKEN},
+    (SimpleTokenDef){"!=", NOT_EQUAL_TOKEN},
+    (SimpleTokenDef){"=", EQUAL_TOKEN},
+    (SimpleTokenDef){"==", DOUBLE_EQUAL_TOKEN},
+    (SimpleTokenDef){"<", LESSER_TOKEN},
+    (SimpleTokenDef){"<=", LESSER_OR_EQUAL_TOKEN},
+    (SimpleTokenDef){">", GREATER_TOKEN},
+    (SimpleTokenDef){">=", GREATER_OR_EQUAL_TOKEN},
+    (SimpleTokenDef){"*", STAR_TOKEN},
+    (SimpleTokenDef){"*/", CLOSE_MULTI_COMMENT_TOKEN},
+    (SimpleTokenDef){".", DOT_TOKEN},
+    (SimpleTokenDef){"...", ELLIPSIS_TOKEN},
+};
+
+#define SIMPLE_TOKEN_DEFS_SIZE (sizeof(simple_token_defs) / sizeof(simple_token_defs[0]))
+
+static int binsearch_tokendef(Span target, SimpleTokenDef *arr, size_t size);
+
+int token_def_cmp(const void *p1, const void *p2) {
+    return strcmp(((SimpleTokenDef *) p1)->token_str, ((SimpleTokenDef *) p2)->token_str);
+}
+
+int prep_directive_cmp(const void *p1, const void *p2) {
+    return strcmp(((Tokenizer *) p1)->name, ((Tokenizer *) p2)->name);
+}
+
+void lexer_init() {
+    qsort(lang_keywords, LANG_KEYWORD_SIZE, sizeof(lang_keywords[0]), qsort_strcmp);
+    qsort(simple_token_defs, SIMPLE_TOKEN_DEFS_SIZE, sizeof(simple_token_defs[0]), token_def_cmp);
+    qsort(prep_directives, PREP_DIRECTIVE_SIZE, sizeof(prep_directives[0]), token_def_cmp);
+}
+
 Token *tokenize(byte *buf, size_t bufsize, int *nlines, LexerError *err) {
     int i;
     LexerState *lex = lexer_new(buf, bufsize);
@@ -114,9 +171,9 @@ Token *tokenize(byte *buf, size_t bufsize, int *nlines, LexerError *err) {
     first_token = token = NULL;
 
     while (!lex->eof) {
-        char c = read(lex);
-
         if (lex->eof) break;
+
+        char c = read(lex);
 
         if (c == '#') {
             Span kw = read_until(lex, isspace);
@@ -128,81 +185,6 @@ Token *tokenize(byte *buf, size_t bufsize, int *nlines, LexerError *err) {
         } else if (c == '"') {
             lex->pos--;
             insert_token(S_CHAR_SEQ_TOKEN, read_until_after_inc(lex, '"'));
-        } else if (c == '(') {
-            insert_token(OPEN_PAREN_TOKEN, (Span){lex->pos - 1, lex->pos});
-        } else if (c == ')') {
-            insert_token(CLOSE_PAREN_TOKEN, (Span){lex->pos - 1, lex->pos});
-        } else if (c == ',') {
-            insert_token(COMMA_TOKEN, (Span){lex->pos - 1, lex->pos});
-        } else if (c == '&') {
-            insert_token(AMPERSAND_TOKEN, (Span){lex->pos - 1, lex->pos});
-        } else if (c == '{') {
-            insert_token(OPEN_CURLY_TOKEN, (Span){lex->pos - 1, lex->pos});
-        } else if (c == '}') {
-            insert_token(CLOSE_CURLY_TOKEN, (Span){lex->pos - 1, lex->pos});
-        } else if (c == '[') {
-            insert_token(OPEN_BRACKET_TOKEN, (Span){lex->pos - 1, lex->pos});
-        } else if (c == ']') {
-            insert_token(CLOSE_BRACKET_TOKEN, (Span){lex->pos - 1, lex->pos});
-        } else if (c == ':') {
-            insert_token(COLON_TOKEN, (Span){lex->pos - 1, lex->pos});
-        } else if (c == ';') {
-            insert_token(SEMICOLON_TOKEN, (Span){lex->pos - 1, lex->pos});
-        } else if (c == '-') {
-            byte *start = lex->pos - 1;
-            char next = read(lex);
-
-            if (next == '=') {
-                insert_token(MINUS_EQUAL_TOKEN, (Span){start, lex->pos});
-            } else if (next == '>') {
-                insert_token(ARROW_TOKEN, (Span){start, lex->pos});
-            } else {
-                insert_token(MINUS_TOKEN, (Span){start, --lex->pos});
-            }
-        } else if (c == '!') {
-            byte *start = lex->pos - 1;
-            if (read(lex) == '=') {
-                insert_token(NOT_EQUAL_TOKEN, (Span){start, lex->pos});
-            } else {
-                insert_token(NOT_TOKEN, (Span){start, --lex->pos});
-            }
-        } else if (c == '=') {
-            byte *start = lex->pos - 1;
-            if (read(lex) == '=') {
-                insert_token(DOUBLE_EQUAL_TOKEN, (Span){start, lex->pos});
-            } else {
-                insert_token(EQUAL_TOKEN, (Span){start, --lex->pos});
-            }
-        } else if (c == '<') {
-            byte *start = lex->pos - 1;
-            if (read(lex) == '=') {
-                insert_token(LESSER_OR_EQUAL_TOKEN, (Span){start, lex->pos});
-            } else {
-                insert_token(LESSER_TOKEN, (Span){start, --lex->pos});
-            }
-        } else if (c == '>') {
-            byte *start = lex->pos - 1;
-            if (read(lex) == '=') {
-                insert_token(GREATER_OR_EQUAL_TOKEN, (Span){start, lex->pos});
-            } else {
-                insert_token(GREATER_TOKEN, (Span){start, --lex->pos});
-            }
-        } else if (c == '*') {
-            insert_token(STAR_TOKEN, (Span){lex->pos - 1, lex->pos});
-        } else if (c == '.') {
-            byte *start = lex->pos - 1;
-            if (read(lex) == '.') {
-                if (read(lex) == '.') {
-                    insert_token(ELLIPSIS_TOKEN, (Span){start, lex->pos});
-                    continue;
-                } else {
-                    lex->pos--;
-                }
-            } else {
-                lex->pos--;
-            }
-
-            insert_token(DOT_TOKEN, (Span){lex->pos - 1, lex->pos});
         } else if (isspace(c)) {
             lex->pos--;
             insert_token(WHITESPACE_TOKEN, read_spaces(lex));
@@ -219,10 +201,26 @@ Token *tokenize(byte *buf, size_t bufsize, int *nlines, LexerError *err) {
                 insert_token(IDENTIFIER_TOKEN, word);
             }
         } else {
-            err->token = c;
-            err->column = current_column;
-            err->line = current_line;
-            return NULL;
+            lex->pos--;
+            int simple_ind = -1;
+            Span simple_span = {lex->pos, lex->pos + 1};
+
+            while (simple_span.end <= lex->srcspan.end && (i = binsearch_tokendef(simple_span, simple_token_defs, SIMPLE_TOKEN_DEFS_SIZE)) >= 0) {
+                simple_span.end++;
+                simple_ind = i;
+            }
+
+            simple_span.end--;
+            lex->pos = simple_span.end;
+
+            if (simple_ind >= 0) {
+                insert_token(simple_token_defs[simple_ind].token_type, simple_span);
+            } else {
+                err->token = c;
+                err->column = current_column;
+                err->line = current_line;
+                return NULL;
+            }
         }
     }
 
@@ -245,6 +243,26 @@ static int binsearch_lex_span(Span target, Tokenizer *arr, size_t size) {
         int mid = (low + high) / 2;
 
         if ((comp = spanstrcmp(target, arr[mid].name)) < 0) {
+            high = mid - 1;
+        } else if (comp > 0) {
+            low = mid + 1;
+        } else {
+            return mid;
+        }
+    }
+
+    return -1;
+}
+
+static int binsearch_tokendef(Span target, SimpleTokenDef *arr, size_t size) {
+    int low = 0;
+    int high = (int) size - 1;
+    int comp;
+
+    while (low <= high) {
+        int mid = (low + high) / 2;
+
+        if ((comp = spanstrcmp(target, arr[mid].token_str)) < 0) {
             high = mid - 1;
         } else if (comp > 0) {
             low = mid + 1;

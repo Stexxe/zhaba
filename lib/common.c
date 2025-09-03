@@ -123,6 +123,10 @@ int spanstrcmp(Span sp, char *str) {
     return last - *str;
 }
 
+int qsort_strcmp(const void *p1, const void *p2) {
+    return strcmp(*(const char **) p1, *(const char **) p2);
+}
+
 char *path_basename_noext(char *path) {
     char *p;
     for (p = path; *p != '\0'; p++)

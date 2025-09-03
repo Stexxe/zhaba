@@ -17,19 +17,21 @@ typedef enum {
     SEMICOLON_TOKEN,
     MINUS_EQUAL_TOKEN,
     ARROW_TOKEN,
+    DECREMENT_TOKEN,
     NUM_LITERAL_TOKEN,
     DOT_TOKEN, ELLIPSIS_TOKEN,
     OPEN_PAREN_TOKEN, CLOSE_PAREN_TOKEN,
     OPEN_CURLY_TOKEN, CLOSE_CURLY_TOKEN,
     OPEN_BRACKET_TOKEN, CLOSE_BRACKET_TOKEN,
     NOT_TOKEN, EQUAL_TOKEN,
+    LINE_COMMENT_TOKEN, OPEN_MULTI_COMMENT_TOKEN, CLOSE_MULTI_COMMENT_TOKEN,
 
     // unary operations
     AMPERSAND_TOKEN, STAR_TOKEN,
     // binary operations
     NOT_EQUAL_TOKEN, DOUBLE_EQUAL_TOKEN,
     GREATER_TOKEN, GREATER_OR_EQUAL_TOKEN,
-    LESSER_TOKEN, LESSER_OR_EQUAL_TOKEN, MINUS_TOKEN,
+    LESSER_TOKEN, LESSER_OR_EQUAL_TOKEN, MINUS_TOKEN, DIVISION_TOKEN,
 
     IDENTIFIER_TOKEN,
     STUB_TOKEN,
@@ -67,5 +69,6 @@ char read(LexerState *st);
 LexerState *lexer_new(byte *src, size_t srcsize);
 void lexer_free(LexerState *st);
 Token *tokenize(byte *buf, size_t bufsize, int *nlines, LexerError *err);
+void lexer_init();
 
 #endif //ZHABA_LEXER_H

@@ -45,6 +45,8 @@ int main(int argc, char *argv[]) {
     int direrr = mkdir(outdir, 0777);
     assert(direrr == 0 || errno == EEXIST);
 
+    lexer_init();
+
     while ((ent = readdir(dir)) != NULL) {
         if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) continue;
         assert(ent->d_type == DT_REG);

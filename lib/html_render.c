@@ -94,9 +94,7 @@ static void write_decl(HtmlHandle *html, Declaration *decl, bool is_struct_membe
     for (Token *t = decl->data_type->start_token; t != decl->data_type->end_token; t = t->next) {
         if (t->type == KEYWORD_TOKEN) {
             write_tokenc(html, t, "keyword");
-        } else if (t == decl->data_type->struct_id) {
-            write_tokenc(html, t, "typename");
-        } else if (t == decl->data_type->typedef_id) {
+        } else if (t == decl->data_type->struct_id || t == decl->data_type->typedef_id) {
             write_tokenc(html, t, "typename");
         } else {
             html_write_token(html, t);
