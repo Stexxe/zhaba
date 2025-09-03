@@ -46,10 +46,10 @@ static void render_statement_expr(NodeHeader *st, FILE *file) {
         case FUNC_INVOKE: {
             FuncInvoke *invoke = (FuncInvoke*) st;
             colored(invoke->name->span, DEFAULT_COLOR, file);
-            colored_token_span(invoke->name->next, invoke->arg->start_token, NO_COLOR, file);
+            colored_token_span(invoke->name->next, invoke->last_arg->start_token, NO_COLOR, file);
 
             NodeHeader *last_arg = NULL;
-            for (NodeHeader *arg = invoke->arg; arg != NULL; arg = arg->next) {
+            for (NodeHeader *arg = invoke->last_arg; arg != NULL; arg = arg->next) {
                 render_statement_expr(arg, file);
                 if (arg->next != NULL) {
                     colored_token_span(arg->end_token, arg->next->start_token, NO_COLOR, file);

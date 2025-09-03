@@ -13,8 +13,10 @@ typedef enum {
     DECLARATION, ASSIGNMENT,
     VAR_REFERENCE, DEFINE_REFERENCE,
     ARRAY_ACCESS,
+    STRUCT_INIT,
     UNARY_OP,
     BINARY_OP,
+    ARROW_OP,
     LABEL_DECL,
     STRUCT_DECL,
     IF_STATEMENT, GOTO_STATEMENT,
@@ -34,9 +36,16 @@ struct NodeHeader {
 typedef struct NodeHeader NodeHeader;
 
 typedef enum {
+    UNKNOWN_DATA_TYPE_KIND,
+    DATA_TYPE_STRUCT,
+    DATA_TYPE_PRIMITIVE,
+    DATA_TYPE_TYPEDEF
+} DataTypeKind;
+
+typedef enum {
     UNKNOWN_PRIMITIVE_TYPE,
     CHAR_TYPE, INT_TYPE, SHORT_TYPE, LONG_TYPE, FLOAT_TYPE, DOUBLE_TYPE, VOID_TYPE,
-    DATA_TYPE_COUNT
+    PRIMITIVE_TYPE_COUNT
 } PrimitiveDataType;
 
 typedef enum {
@@ -45,9 +54,11 @@ typedef enum {
 } PointerType;
 
 typedef struct {
+    DataTypeKind kind;
     PrimitiveDataType primitive;
     PointerType pointer;
-    Token *typedef_token;
+    Token *typedef_id;
+    Token *struct_id;
     Token *start_token;
     Token *end_token;
 } DataType;
@@ -66,6 +77,11 @@ typedef struct {
     Token *id;
     Assignment *assign;
 } Declaration;
+
+typedef struct {
+    NodeHeader header;
+    NodeHeader *last_expr;
+} StructInit;
 
 typedef struct {
     Token *name;
@@ -98,7 +114,7 @@ typedef struct {
 typedef struct {
     NodeHeader header;
     Token *name;
-    NodeHeader *arg;
+    NodeHeader *last_arg;
 } FuncInvoke;
 
 typedef struct {
@@ -158,6 +174,12 @@ typedef struct {
     NodeHeader *lhs;
     NodeHeader *rhs;
 } BinaryOp;
+
+typedef struct {
+    NodeHeader header;
+    NodeHeader *lhs;
+    Token *member;
+} ArrowOp;
 
 typedef struct {
     NodeHeader header;
