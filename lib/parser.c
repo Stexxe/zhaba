@@ -127,6 +127,13 @@ NodeHeader *parse(Token *first_token) {
             case STUB_TOKEN: {
                 next_token();
             } break;
+            case LINE_COMMENT_TOKEN: {
+                NodeHeader *comment = pool_alloc_struct(NodeHeader);
+                comment->type = LINE_COMMENT;
+                comment->start_token = token;
+                comment->end_token = token->next;
+                insert(comment);
+            } break;
             case KEYWORD_TOKEN: {
                 start_token = nonws_token();
 

@@ -50,6 +50,7 @@ static Span read_until(LexerState *st, int (*cmp) (int));
 static Span read_spaces(LexerState *st);
 static Span read_until_after_inc(LexerState *st, char c);
 static Span read_until_char_inc(LexerState *st, char c);
+static Span read_until_str_inc(LexerState *st, char *str);
 static int isid(int c);
 static int notid(int c);
 static int notdigit(int c);
@@ -214,7 +215,15 @@ Token *tokenize(byte *buf, size_t bufsize, int *nlines, LexerError *err) {
             lex->pos = simple_span.end;
 
             if (simple_ind >= 0) {
-                insert_token(simple_token_defs[simple_ind].token_type, simple_span);
+                TokenType token_type = simple_token_defs[simple_ind].token_type;
+
+                if (token_type == LINE_COMMENT_TOKEN) {
+                    insert_token(token_type, (Span) {simple_span.ptr, read_until_char_inc(lex, '\n').end});
+                } else if (token_type == OPEN_MULTI_COMMENT_TOKEN) {
+                    insert_token(token_type, (Span) {simple_span.ptr, read_until_str_inc(lex, "*/").end});
+                } else {
+                    insert_token(token_type, simple_span);
+                }
             } else {
                 err->token = c;
                 err->column = current_column;
@@ -309,6 +318,10 @@ static Span read_until_char_inc(LexerState *st, char c) {
 
     span.end = current;
     return span;
+}
+
+static Span read_until_str_inc(LexerState *st, char *str) {
+    // TODO: Implement
 }
 
 static Span read_spaces(LexerState *st) {
