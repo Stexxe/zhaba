@@ -243,6 +243,10 @@ static void write_statement(HtmlHandle *html, NodeHeader *st) {
             write_token_span(html, op->lhs->start_token, op->member);
             write_tokenc(html, op->member, "member");
         } break;
+        case LINE_COMMENT:
+        case MULTI_COMMENT: {
+            write_token_spanc(html, st->start_token, st->end_token, "comment");
+        } break;
         default: {
             assert(0);
         } break;
@@ -293,6 +297,10 @@ static void write_code(HtmlHandle *html, NodeHeader *node) {
                 write_token_span(html, decl->id->next, head_decl->start_token);
                 write_member_decls(html, decl->last_decl);
                 write_token_span(html, decl->last_decl->header.end_token, node->end_token);
+            } break;
+            case LINE_COMMENT:
+            case MULTI_COMMENT: {
+                write_token_spanc(html, node->start_token, node->end_token, "comment");
             } break;
             default: {
                 assert(0);

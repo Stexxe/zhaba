@@ -61,6 +61,7 @@ static Declaration *parse_decl_block();
 static ReturnStatement *parse_return();
 static GotoStatement *parse_goto();
 static LabelDecl *parse_label();
+static NodeHeader *parse_comment();
 static Declaration *parse_decl();
 static NodeHeader *parse_expr_list(TokenType open_token_type, TokenType close_token_type);
 static Assignment *parse_assign();
@@ -127,12 +128,9 @@ NodeHeader *parse(Token *first_token) {
             case STUB_TOKEN: {
                 next_token();
             } break;
-            case LINE_COMMENT_TOKEN: {
-                NodeHeader *comment = pool_alloc_struct(NodeHeader);
-                comment->type = LINE_COMMENT;
-                comment->start_token = token;
-                comment->end_token = token->next;
-                insert(comment);
+            case LINE_COMMENT_TOKEN:
+            case MULTI_COMMENT_TOKEN: {
+                insert(parse_comment());
             } break;
             case KEYWORD_TOKEN: {
                 start_token = nonws_token();
@@ -281,7 +279,9 @@ static NodeHeader *parse_func_body() {
 }
 
 static NodeHeader *parse_statement() {
-    if (nonws_token()->type == IDENTIFIER_TOKEN) {
+    if (nonws_token()->type == LINE_COMMENT_TOKEN || nonws_token()->type == MULTI_COMMENT_TOKEN) {
+        return parse_comment();
+    } else if (nonws_token()->type == IDENTIFIER_TOKEN) {
         if (is_next_skipws(OPEN_PAREN_TOKEN)) {
             return (NodeHeader *) parse_func_invoke();
         } else if (is_next_skipws(COLON_TOKEN)) {
@@ -313,6 +313,17 @@ static FuncInvoke *parse_func_invoke() {
     invoke->last_arg = parse_expr_list(OPEN_PAREN_TOKEN, CLOSE_PAREN_TOKEN);
     invoke->header = (NodeHeader) {FUNC_INVOKE, invoke->name, token};
     return invoke;
+}
+
+static NodeHeader *parse_comment() {
+    assert(token->type == LINE_COMMENT_TOKEN || token->type == MULTI_COMMENT_TOKEN);
+    NodeHeader *comment = pool_alloc_struct(NodeHeader);
+    comment->type = token->type == LINE_COMMENT_TOKEN ? LINE_COMMENT : MULTI_COMMENT;
+    comment->start_token = token;
+    comment->end_token = token->next;
+
+    next_token();
+    return comment;
 }
 
 static LabelDecl *parse_label() {

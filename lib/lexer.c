@@ -50,7 +50,8 @@ static Span read_until(LexerState *st, int (*cmp) (int));
 static Span read_spaces(LexerState *st);
 static Span read_until_after_inc(LexerState *st, char c);
 static Span read_until_char_inc(LexerState *st, char c);
-static Span read_until_str_inc(LexerState *st, char *str);
+static Span read_until_char(LexerState *st, char c);
+static Span read_until_str_inc(LexerState *, char *str);
 static int isid(int c);
 static int notid(int c);
 static int notdigit(int c);
@@ -132,7 +133,7 @@ static SimpleTokenDef simple_token_defs[] = {
     (SimpleTokenDef){"--", DECREMENT_TOKEN},
     (SimpleTokenDef){"/", DIVISION_TOKEN},
     (SimpleTokenDef){"//", LINE_COMMENT_TOKEN},
-    (SimpleTokenDef){"/*", OPEN_MULTI_COMMENT_TOKEN},
+    (SimpleTokenDef){"/*", MULTI_COMMENT_TOKEN},
     (SimpleTokenDef){"!", NOT_TOKEN},
     (SimpleTokenDef){"!=", NOT_EQUAL_TOKEN},
     (SimpleTokenDef){"=", EQUAL_TOKEN},
@@ -142,10 +143,11 @@ static SimpleTokenDef simple_token_defs[] = {
     (SimpleTokenDef){">", GREATER_TOKEN},
     (SimpleTokenDef){">=", GREATER_OR_EQUAL_TOKEN},
     (SimpleTokenDef){"*", STAR_TOKEN},
-    (SimpleTokenDef){"*/", CLOSE_MULTI_COMMENT_TOKEN},
     (SimpleTokenDef){".", DOT_TOKEN},
     (SimpleTokenDef){"...", ELLIPSIS_TOKEN},
 };
+
+#define MAX_TOKEN_LEN 3
 
 #define SIMPLE_TOKEN_DEFS_SIZE (sizeof(simple_token_defs) / sizeof(simple_token_defs[0]))
 
@@ -203,23 +205,32 @@ Token *tokenize(byte *buf, size_t bufsize, int *nlines, LexerError *err) {
             }
         } else {
             lex->pos--;
-            int simple_ind = -1;
+            int simple_ind;
+            int token_delta = -1;
             Span simple_span = {lex->pos, lex->pos + 1};
+            int token_len;
 
-            while (simple_span.end <= lex->srcspan.end && (i = binsearch_tokendef(simple_span, simple_token_defs, SIMPLE_TOKEN_DEFS_SIZE)) >= 0) {
+            for (token_len = MAX_TOKEN_LEN, simple_ind = -1; simple_span.end <= lex->srcspan.end && token_len > 0; token_len--) {
+                i = binsearch_tokendef(simple_span, simple_token_defs, SIMPLE_TOKEN_DEFS_SIZE);
+                if (i >= 0) {
+                    simple_ind = i;
+                    token_delta = token_len;
+                }
                 simple_span.end++;
-                simple_ind = i;
             }
 
-            simple_span.end--;
+            simple_span.end -= token_delta;
+            if (simple_span.end < lex->pos + 1) simple_span.end = lex->pos + 1;
+
+            assert(simple_span.end >= lex->pos + 1);
             lex->pos = simple_span.end;
 
             if (simple_ind >= 0) {
                 TokenType token_type = simple_token_defs[simple_ind].token_type;
 
                 if (token_type == LINE_COMMENT_TOKEN) {
-                    insert_token(token_type, (Span) {simple_span.ptr, read_until_char_inc(lex, '\n').end});
-                } else if (token_type == OPEN_MULTI_COMMENT_TOKEN) {
+                    insert_token(token_type, (Span) {simple_span.ptr, read_until_char(lex, '\n').end});
+                } else if (token_type == MULTI_COMMENT_TOKEN) {
                     insert_token(token_type, (Span) {simple_span.ptr, read_until_str_inc(lex, "*/").end});
                 } else {
                     insert_token(token_type, simple_span);
@@ -320,8 +331,25 @@ static Span read_until_char_inc(LexerState *st, char c) {
     return span;
 }
 
-static Span read_until_str_inc(LexerState *st, char *str) {
-    // TODO: Implement
+static Span read_until_char(LexerState *st, char c) {
+    Span sp = read_until_char_inc(st, c);
+    return (Span) {sp.ptr, --st->pos};
+}
+
+static Span read_until_str_inc(LexerState *lex, char *str) {
+    char *s;
+    Span sp = {lex->pos};
+    for (; lex->pos < lex->srcspan.end ; lex->pos++) {
+        for (s = str; *s == *lex->pos && *s != '\0'; s++, lex->pos++)
+            ;
+
+        if (*s == '\0') {
+            sp.end = lex->pos;
+            break;
+        }
+    }
+
+    return sp;
 }
 
 static Span read_spaces(LexerState *st) {
