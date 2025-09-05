@@ -1,0 +1,24 @@
+<span class="prep">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+
+<span class="keyword">int</span> <span class="func-name">main</span>() {
+    <span class="keyword">int</span> a = <span class="num">3</span>;
+
+    <span class="keyword">switch</span> (a) {
+        <span class="keyword">case</span> <span class="num">1</span>: {
+            printf(<span class="str">"1"</span>);
+            <span class="keyword">break</span>;
+        }
+        <span class="keyword">case</span> <span class="num">2</span>: {
+            printf(<span class="str">"2"</span>);
+        }
+        <span class="keyword">case</span> <span class="num">3</span>:
+        <span class="keyword">case</span> <span class="num">4</span>:
+            printf(<span class="str">"3 or 4"</span>);
+            <span class="keyword">break</span>;
+        <span class="keyword">default</span>: {
+            printf(<span class="str">"default"</span>);
+        } <span class="keyword">break</span>;
+    }
+
+    <span class="keyword">return</span> <span class="num">0</span>;
+}

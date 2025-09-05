@@ -1,5 +1,6 @@
 #include "parser.h"
 #include <assert.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "prep.h"
@@ -58,6 +59,7 @@ static FuncInvoke *parse_func_invoke();
 static NodeHeader *parse_expr();
 static StructDecl *parse_struct_decl();
 static Declaration *parse_decl_block();
+static SwitchStatement *parse_switch();
 static ReturnStatement *parse_return();
 static GotoStatement *parse_goto();
 static LabelDecl *parse_label();
@@ -65,18 +67,28 @@ static NodeHeader *parse_comment();
 static Declaration *parse_decl();
 static NodeHeader *parse_expr_list(TokenType open_token_type, TokenType close_token_type);
 static Assignment *parse_assign();
+static NodeHeader *parse_break();
 static IfStatement *parse_if();
 static int binsearch_primitive(Span, Primitive *, size_t);
 static int binsearch_parser(Span target, KeywordParser *arr, size_t size);
 
-// TODO: Sort once
 static KeywordParser keyword_parsers[] = {
     (KeywordParser) {"goto", (ParseFunc) parse_goto},
     (KeywordParser) {"if", (ParseFunc) parse_if},
     (KeywordParser) {"return", (ParseFunc) parse_return},
+    (KeywordParser) {"switch", (ParseFunc) parse_switch},
+    (KeywordParser) {"break", (ParseFunc) parse_break},
 };
 
 #define KEYWORD_PARSER_COUNT (sizeof(keyword_parsers) / sizeof(keyword_parsers[0]))
+
+int kw_parser_cmp(const void *p1, const void *p2) {
+    return strcmp(((KeywordParser *) p1)->keyword, ((KeywordParser *) p2)->keyword);
+}
+
+void parser_init() {
+    qsort(keyword_parsers, KEYWORD_PARSER_COUNT, sizeof(keyword_parsers[0]), kw_parser_cmp);
+}
 
 static Token *token;
 static NodeHeader *first_element = NULL, *element = NULL;
@@ -311,6 +323,103 @@ static NodeHeader *parse_statement() {
     assert(0);
 }
 
+static NodeHeader *parse_statements_until(bool (*cond)(Token *)) {
+    NodeHeader *stub = pool_alloc_struct(NodeHeader);
+    stub->type = STUB;
+    stub->start_token = nonws_token();
+    stub->end_token = nonws_token();
+
+    NodeHeader *st, *prev;
+    st = prev = stub;
+
+    while (!cond(nonws_token())) {
+        if (token->type == OPEN_CURLY_TOKEN) {
+            st = parse_block();
+            prev->next = st->next->next;
+            st->next = stub;
+        } else {
+            st = parse_statement();
+            prev->next = st;
+        }
+
+        if (nonws_token()->type == SEMICOLON_TOKEN) skip_token(SEMICOLON_TOKEN);
+
+        prev = st;
+    }
+
+    st->next = stub;
+    return st;
+}
+
+bool is_switch_block_start(Token *t) {
+    return (token->type == CLOSE_CURLY_TOKEN) ||
+        (token->type == KEYWORD_TOKEN && (spanstrcmp(token->span, "case") == 0 || spanstrcmp(token->span, "default") == 0));
+}
+
+static SwitchStatement *parse_switch() {
+    SwitchStatement *swtch = pool_alloc_struct(SwitchStatement);
+    swtch->header = (NodeHeader) {SWITCH_STATEMENT, token};
+
+    skip_token(KEYWORD_TOKEN);
+    nonws_token();
+    skip_token(OPEN_PAREN_TOKEN);
+    nonws_token();
+    swtch->expr = parse_expr();
+    nonws_token();
+    skip_token(CLOSE_PAREN_TOKEN);
+    nonws_token();
+    skip_token(OPEN_CURLY_TOKEN);
+
+    SwitchBlock *stub_block = pool_alloc_struct(SwitchBlock);
+    stub_block->header = (NodeHeader) {STUB, nonws_token(), nonws_token()};
+
+    SwitchBlock *block, *prev;
+    block = prev = stub_block;
+
+    while (nonws_token()->type != CLOSE_CURLY_TOKEN) {
+        block = pool_alloc_struct(SwitchBlock);
+        block->header = (NodeHeader) {SWITCH_BLOCK, token};
+
+        if (spanstrcmp(token->span, "case") == 0) {
+            block->type = CASE_BLOCK;
+
+            skip_token(KEYWORD_TOKEN);
+            nonws_token();
+            assert(token->type == NUM_LITERAL_TOKEN || token->type == IDENTIFIER_TOKEN);
+            block->label_token = token;
+            next_token();
+            nonws_token();
+            block->colon_token = token;
+            skip_token(COLON_TOKEN);
+            nonws_token();
+
+            block->last_stmt = parse_statements_until(is_switch_block_start);
+        } else if (spanstrcmp(token->span, "default") == 0) {
+            block->type = DEFAULT_BLOCK;
+
+            skip_token(KEYWORD_TOKEN);
+            nonws_token();
+            block->colon_token = token;
+            skip_token(COLON_TOKEN);
+            nonws_token();
+
+            block->last_stmt = parse_statements_until(is_switch_block_start);
+        } else {
+            assert(0);
+        }
+
+        block->header.end_token = token;
+        prev->header.next = (NodeHeader *) block;
+        prev = block;
+    }
+
+    skip_token(CLOSE_CURLY_TOKEN);
+    swtch->header.end_token = token;
+    block->header.next = (NodeHeader *) stub_block;
+    swtch->last_block = block;
+    return swtch;
+}
+
 static FuncInvoke *parse_func_invoke() {
     FuncInvoke *invoke = pool_alloc_struct(FuncInvoke);
     invoke->name = nonws_token();
@@ -402,6 +511,15 @@ static Declaration *parse_decl() {
     decl->header = (NodeHeader) {DECLARATION, start, token};
 
     return decl;
+}
+
+static NodeHeader *parse_break() {
+    NodeHeader *br = pool_alloc_struct(NodeHeader);
+    br->type = BREAK_STATEMENT;
+    br->start_token = token;
+    skip_token(KEYWORD_TOKEN);
+    br->end_token = token;
+    return br;
 }
 
 static Assignment *parse_assign() {

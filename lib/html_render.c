@@ -267,6 +267,46 @@ static void write_statement(HtmlHandle *html, NodeHeader *st) {
             write_token_span(html, st->start_token, assign->expr->start_token);
             write_statement(html, assign->expr);
         } break;
+        case BREAK_STATEMENT: {
+            write_token_spanc(html, st->start_token, st->end_token, "keyword");
+        } break;
+        case SWITCH_STATEMENT: {
+            SwitchStatement *swtch = (SwitchStatement *) st;
+            write_tokenc(html, st->start_token, "keyword");
+            write_token_span(html, st->start_token->next, swtch->expr->start_token);
+            write_statement(html, swtch->expr);
+
+            NodeHeader *head_block = swtch->last_block->header.next;
+            write_token_span(html, swtch->expr->end_token, head_block->start_token);
+
+            NodeHeader *block = head_block;
+
+            for (block = block->next; block != head_block; block = block->next) {
+                write_tokenc(html, block->start_token, "keyword");
+                SwitchBlock *blk = (SwitchBlock *) block;
+                if (blk->label_token != NULL) write_token_span(html, block->start_token->next, blk->label_token);
+
+                if (blk->label_token != NULL) {
+                    if (blk->label_token->type == NUM_LITERAL_TOKEN) {
+                        write_tokenc(html, blk->label_token, "num");
+                    } else {
+                        html_write_token(html, blk->label_token);
+                    }
+                }
+
+                NodeHeader *head_s = blk->last_stmt->next;
+                NodeHeader *s = head_s;
+                Token *token_before = blk->colon_token;
+
+                for (s = s->next; s != head_s; s = s->next) {
+                    write_token_span(html, token_before, s->start_token);
+                    write_statement(html, s);
+                    token_before = s->end_token;
+                }
+
+                write_token_span(html, token_before, block->next != head_block ? block->next->start_token : st->end_token);
+            }
+        } break;
         default: {
             assert(0);
         } break;

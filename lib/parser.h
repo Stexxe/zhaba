@@ -13,6 +13,7 @@ typedef enum {
     STRING_LITERAL, INT_LITERAL,
     LINE_COMMENT, MULTI_COMMENT,
     DECLARATION, ASSIGNMENT,
+    BREAK_STATEMENT,
     VAR_REFERENCE, DEFINE_REFERENCE,
     ARRAY_ACCESS,
     STRUCT_INIT,
@@ -21,7 +22,7 @@ typedef enum {
     ARROW_OP,
     LABEL_DECL,
     STRUCT_DECL,
-    IF_STATEMENT, GOTO_STATEMENT,
+    IF_STATEMENT, GOTO_STATEMENT, SWITCH_STATEMENT, SWITCH_BLOCK,
     STUB,
     RETURN_STATEMENT,
     STATEMENT,
@@ -146,6 +147,26 @@ typedef struct {
     NodeHeader *expr;
 } ReturnStatement;
 
+typedef enum {
+    UNKNOWN_SWITCH_BLOCK,
+    CASE_BLOCK,
+    DEFAULT_BLOCK,
+} SwitchBlockType;
+
+typedef struct {
+    NodeHeader header;
+    SwitchBlockType type;
+    Token *label_token;
+    Token *colon_token;
+    NodeHeader *last_stmt;
+} SwitchBlock;
+
+typedef struct {
+    NodeHeader header;
+    NodeHeader *expr;
+    SwitchBlock *last_block;
+} SwitchStatement;
+
 typedef struct {
     NodeHeader header;
     Token *label;
@@ -200,5 +221,6 @@ typedef struct {
 typedef struct FuncArgument FuncArgument;
 
 NodeHeader *parse(Token *);
+void parser_init();
 
 #endif //ZHABA_PARSER_H

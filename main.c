@@ -5,6 +5,7 @@
 #include <stdarg.h>
 #include "lib/lexer.h"
 #include "lib/lib.h"
+#include "lib/parser.h"
 
 void throwerr(char *fmt, ...) {
     va_list ap;
@@ -28,6 +29,7 @@ int main(int argc, char** argv) {
 
     RenderError err;
     lexer_init();
+    parser_init();
     RenderErrorType res = render(argv[1], outdir, &err);
 
     if (res < 0) {

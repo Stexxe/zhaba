@@ -10,6 +10,7 @@
 #include "html_reader.h"
 #include "../lib/lexer.h"
 #include "../lib/lib.h"
+#include "../lib/parser.h"
 
 static char *path_ext(char *p);
 static char *path_joinm(char *p1, char *p2);
@@ -46,6 +47,7 @@ int main(int argc, char *argv[]) {
     assert(direrr == 0 || errno == EEXIST);
 
     lexer_init();
+    parser_init();
 
     while ((ent = readdir(dir)) != NULL) {
         if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) continue;
