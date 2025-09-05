@@ -286,6 +286,8 @@ static NodeHeader *parse_statement() {
             return (NodeHeader *) parse_func_invoke();
         } else if (is_next_skipws(COLON_TOKEN)) {
             return (NodeHeader *) parse_label();
+        } else if (is_next_skipws(EQUAL_TOKEN)) {
+            return (NodeHeader *) parse_assign();
         } else {
             return (NodeHeader *) parse_decl();
         }

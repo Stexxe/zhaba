@@ -247,6 +247,11 @@ static void write_statement(HtmlHandle *html, NodeHeader *st) {
         case MULTI_COMMENT: {
             write_token_spanc(html, st->start_token, st->end_token, "comment");
         } break;
+        case ASSIGNMENT: {
+            Assignment *assign = (Assignment *) st;
+            write_token_span(html, st->start_token, assign->expr->start_token);
+            write_statement(html, assign->expr);
+        } break;
         default: {
             assert(0);
         } break;
