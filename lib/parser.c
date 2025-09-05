@@ -143,13 +143,17 @@ NodeHeader *parse(Token *first_token) {
                     FuncSignature *sign = parse_func_signature();
 
                     if (nonws_token()->type == SEMICOLON_TOKEN) { // Func declaration
-
+                        FuncDecl *decl = pool_alloc_struct(FuncDecl);
+                        decl->signature = sign;
+                        decl->header = (NodeHeader) {FUNC_DECL, start_token, token};
+                        nonws_token();
+                        skip_token(SEMICOLON_TOKEN);
+                        insert((NodeHeader *)decl);
                     } else if (nonws_token()->type == OPEN_CURLY_TOKEN) { // Func definition
-                        NodeHeader *first_statement = parse_func_body();
                         FuncDef *def = pool_alloc_struct(FuncDef);
-                        def->header = (NodeHeader) {FUNC_DEF, start_token, token};
                         def->signature = sign;
-                        def->last_stmt = first_statement;
+                        def->last_stmt = parse_func_body();
+                        def->header = (NodeHeader) {FUNC_DEF, start_token, token};
                         insert((NodeHeader *)def);
                     }
                 }
@@ -243,6 +247,7 @@ static DataType *parse_data_type() {
 }
 
 static FuncSignature *parse_func_signature() {
+    Token *start_token = token;
     DataType *type = parse_data_type();
     Token *name = nonws_token();
     skip_token(IDENTIFIER_TOKEN);
@@ -268,6 +273,7 @@ static FuncSignature *parse_func_signature() {
     skip_token(CLOSE_PAREN_TOKEN);
 
     FuncSignature *signature = pool_alloc(sizeof(FuncSignature), FuncSignature);
+    signature->header = (NodeHeader) {FUNC_SIGNATURE, start_token, token};
     signature->name = name;
     signature->return_type = type;
     signature->last_param = param;
@@ -282,14 +288,12 @@ static NodeHeader *parse_statement() {
     if (nonws_token()->type == LINE_COMMENT_TOKEN || nonws_token()->type == MULTI_COMMENT_TOKEN) {
         return parse_comment();
     } else if (nonws_token()->type == IDENTIFIER_TOKEN) {
-        if (is_next_skipws(OPEN_PAREN_TOKEN)) {
-            return (NodeHeader *) parse_func_invoke();
-        } else if (is_next_skipws(COLON_TOKEN)) {
+        if (is_next_skipws(COLON_TOKEN)) {
             return (NodeHeader *) parse_label();
-        } else if (is_next_skipws(EQUAL_TOKEN)) {
-            return (NodeHeader *) parse_assign();
-        } else {
+        } else if (is_next_skipws(IDENTIFIER_TOKEN)) {
             return (NodeHeader *) parse_decl();
+        } else {
+            return parse_expr();
         }
     } else if (nonws_token()->type == KEYWORD_TOKEN) {
         int i;
@@ -407,6 +411,7 @@ static Assignment *parse_assign() {
     skip_token(IDENTIFIER_TOKEN);
     Token *sign = nonws_token();
     skip_token(EQUAL_TOKEN);
+    nonws_token();
 
     assign->varname = varname;
     assign->equal_sign = sign;
@@ -496,6 +501,10 @@ static NodeHeader *parse_expr_lazy() {
             skip_token(CLOSE_BRACKET_TOKEN);
             access->header = (NodeHeader) {ARRAY_ACCESS, access->id, token};
             node = (NodeHeader *) access;
+        } else if (is_next_skipws(OPEN_PAREN_TOKEN)) {
+            return (NodeHeader *) parse_func_invoke();
+        } else if (is_next_skipws(EQUAL_TOKEN)) {
+            return (NodeHeader *) parse_assign();
         } else {
             VarReference *ref = pool_alloc_struct(VarReference);
             ref->header = (NodeHeader) {VAR_REFERENCE, token, token->next};

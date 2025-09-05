@@ -9,6 +9,7 @@ typedef enum {
     DEFINE_DIRECTIVE,
     FUNC_DEF, FUNC_DECL,
     FUNC_INVOKE,
+    FUNC_SIGNATURE,
     STRING_LITERAL, INT_LITERAL,
     LINE_COMMENT, MULTI_COMMENT,
     DECLARATION, ASSIGNMENT,
@@ -85,6 +86,7 @@ typedef struct {
 } StructInit;
 
 typedef struct {
+    NodeHeader header;
     Token *name;
     DataType *return_type;
     Declaration *last_param;
@@ -95,6 +97,11 @@ typedef struct {
     FuncSignature *signature;
     NodeHeader *last_stmt;
 } FuncDef;
+
+typedef struct {
+    NodeHeader header;
+    FuncSignature *signature;
+} FuncDecl;
 
 typedef enum {
     IncludeHeaderType, IncludePathType

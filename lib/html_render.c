@@ -8,6 +8,7 @@ static void write_params(HtmlHandle *html, Declaration *last_param);
 static void write_decl(HtmlHandle *html, Declaration *decl, bool is_struct_member);
 static void write_statement(HtmlHandle *html, NodeHeader *st);
 static void write_member_decls(HtmlHandle *html, Declaration *last_decl);
+static void write_func_sign(HtmlHandle *html, NodeHeader *node);
 
 static void write_head(HtmlHandle *html, char *filename) {
     html_open_tag(html, "head");
@@ -127,6 +128,20 @@ static void write_member_decls(HtmlHandle *html, Declaration *last_decl) {
         write_decl(html, (Declaration *) param, true);
         if (param->next != head) write_token_span(html, param->end_token, param->next->start_token);
     }
+}
+
+static void write_func_sign(HtmlHandle *html, NodeHeader *node) {
+    FuncDecl *decl = (FuncDecl *) node;
+    DataType *return_type = decl->signature->return_type;
+    write_token_spanc(html, return_type->start_token, return_type->end_token, "keyword");
+    write_ws(html, return_type->end_token);
+    write_token_spanc(html, decl->signature->name, decl->signature->name->next, "func-name");
+    Declaration *last_param = decl->signature->last_param;
+    Declaration *head_param = (Declaration *) last_param->header.next;
+    write_token_span(html, decl->signature->name->next, head_param->header.next->start_token);
+
+    write_params(html, last_param);
+    write_token_span(html, decl->signature->last_param->header.end_token, decl->signature->header.end_token);
 }
 
 static void write_serial(HtmlHandle *html, NodeHeader *last) {
@@ -277,18 +292,14 @@ static void write_code(HtmlHandle *html, NodeHeader *node) {
                 write_ws_after(html, def->id);
                 write_statement(html, def->expr);
             } break;
+            case FUNC_DECL: {
+                write_func_sign(html, node);
+            } break;
             case FUNC_DEF: {
                 FuncDef *def = (FuncDef *) node;
-                DataType *return_type = def->signature->return_type;
-                write_token_spanc(html, return_type->start_token, return_type->end_token, "keyword");
-                write_ws(html, return_type->end_token);
-                write_token_spanc(html, def->signature->name, def->signature->name->next, "func-name");
-                Declaration *last_param = def->signature->last_param;
-                Declaration *head_param = (Declaration *) last_param->header.next;
-                write_token_span(html, def->signature->name->next, head_param->header.next->start_token);
+                write_func_sign(html, node);
 
-                write_params(html, last_param);
-                write_token_span(html, last_param->header.end_token, def->last_stmt->next->start_token);
+                write_token_span(html, def->signature->header.end_token, def->last_stmt->next->start_token);
 
                 write_serial(html, def->last_stmt);
                 write_token_span(html, def->last_stmt->end_token, def->header.end_token);
