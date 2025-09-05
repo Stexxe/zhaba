@@ -20,7 +20,7 @@ typedef enum {
     STRUCT_INIT,
     UNARY_OP,
     BINARY_OP,
-    ARROW_OP,
+    MEMBER_ACCESS,
     LABEL_DECL,
     STRUCT_DECL,
     IF_STATEMENT, GOTO_STATEMENT, SWITCH_STATEMENT, SWITCH_BLOCK,
@@ -215,7 +215,7 @@ typedef struct {
     NodeHeader header;
     NodeHeader *lhs;
     Token *member;
-} ArrowOp;
+} MemberAccess;
 
 typedef struct {
     NodeHeader header;

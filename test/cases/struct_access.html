@@ -1,0 +1,13 @@
+<span class="prep">#include</span> <span class="str">&lt;stdio.h&gt;</span>
+
+<span class="keyword">struct</span> <span class="typename">myStruct</span> {
+    <span class="keyword">int</span> <span class="member">x</span>;
+};
+
+<span class="keyword">int</span> <span class="func-name">main</span>() {
+    <span class="keyword">struct</span> <span class="typename">myStruct</span> a = <span class="init">{</span><span class="num">123</span><span class="init">}</span>;
+
+    printf(<span class="str">"%d\n"</span>, a.<span class="member">x</span>);
+
+    <span class="keyword">return</span> <span class="num">0</span>;
+}

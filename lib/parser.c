@@ -665,15 +665,16 @@ static NodeHeader *parse_expr() {
     NodeHeader *lhs = parse_expr_lazy();
     Token *after_expr = token;
 
-    if (nonws_token()->type == ARROW_TOKEN) {
-        ArrowOp *op = pool_alloc_struct(ArrowOp);
-        op->lhs = lhs;
+    if (nonws_token()->type == ARROW_TOKEN || nonws_token()->type == DOT_TOKEN) {
+        MemberAccess *access = pool_alloc_struct(MemberAccess);
+        access->lhs = lhs;
         nonws_token();
-        skip_token(ARROW_TOKEN);
-        op->member = nonws_token();
+        assert(token->type == ARROW_TOKEN || nonws_token()->type == DOT_TOKEN);
         next_token();
-        op->header = (NodeHeader) {ARROW_OP, start, token};
-        return (NodeHeader *) op;
+        access->member = nonws_token();
+        next_token();
+        access->header = (NodeHeader) {MEMBER_ACCESS, start, token};
+        return (NodeHeader *) access;
     } else if (binsearchi(nonws_token()->type, (int *) binary_operations, BINARY_OP_COUNT) >= 0) {
         next_token();
         BinaryOp *op = pool_alloc_struct(BinaryOp);

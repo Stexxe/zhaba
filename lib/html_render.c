@@ -258,8 +258,8 @@ static void write_statement(HtmlHandle *html, NodeHeader *st) {
                 }
             }
         } break;
-        case ARROW_OP: {
-            ArrowOp *op = (ArrowOp *) st;
+        case MEMBER_ACCESS: {
+            MemberAccess *op = (MemberAccess *) st;
             write_token_span(html, op->lhs->start_token, op->member);
             write_tokenc(html, op->member, "member");
         } break;
