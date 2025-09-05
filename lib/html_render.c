@@ -9,6 +9,7 @@ static void write_decl(HtmlHandle *html, Declaration *decl, bool is_struct_membe
 static void write_statement(HtmlHandle *html, NodeHeader *st);
 static void write_member_decls(HtmlHandle *html, Declaration *last_decl);
 static void write_func_sign(HtmlHandle *html, NodeHeader *node);
+static void write_data_type(HtmlHandle *html, DataType *dt);
 
 static void write_head(HtmlHandle *html, char *filename) {
     html_open_tag(html, "head");
@@ -92,15 +93,7 @@ static void write_decl(HtmlHandle *html, Declaration *decl, bool is_struct_membe
         return;
     }
 
-    for (Token *t = decl->data_type->start_token; t != decl->data_type->end_token; t = t->next) {
-        if (t->type == KEYWORD_TOKEN) {
-            write_tokenc(html, t, "keyword");
-        } else if (t == decl->data_type->struct_id || t == decl->data_type->typedef_id) {
-            write_tokenc(html, t, "typename");
-        } else {
-            html_write_token(html, t);
-        }
-    }
+    write_data_type(html, decl->data_type);
 
     write_ws(html, decl->data_type->end_token);
 
@@ -127,6 +120,18 @@ static void write_member_decls(HtmlHandle *html, Declaration *last_decl) {
     for (param = param->next; param != head; param = param->next) {
         write_decl(html, (Declaration *) param, true);
         if (param->next != head) write_token_span(html, param->end_token, param->next->start_token);
+    }
+}
+
+static void write_data_type(HtmlHandle *html, DataType *dt) {
+    for (Token *t = dt->start_token; t != dt->end_token; t = t->next) {
+        if (t->type == KEYWORD_TOKEN) {
+            write_tokenc(html, t, "keyword");
+        } else if (t == dt->struct_id || t == dt->typedef_id) {
+            write_tokenc(html, t, "typename");
+        } else {
+            html_write_token(html, t);
+        }
     }
 }
 
@@ -306,6 +311,14 @@ static void write_statement(HtmlHandle *html, NodeHeader *st) {
 
                 write_token_span(html, token_before, block->next != head_block ? block->next->start_token : st->end_token);
             }
+        } break;
+        case TYPE_CAST: {
+            TypeCast *cast = (TypeCast *) st;
+            write_token_span(html, st->start_token, cast->data_type->start_token);
+            write_data_type(html, cast->data_type);
+            write_token_span(html, cast->data_type->end_token, cast->expr->start_token);
+            write_statement(html, cast->expr);
+            write_token_span(html, cast->expr->end_token, st->end_token);
         } break;
         default: {
             assert(0);

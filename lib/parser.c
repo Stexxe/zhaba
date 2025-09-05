@@ -632,6 +632,18 @@ static NodeHeader *parse_expr_lazy() {
         }
 
         return node;
+    } else if (token->type == OPEN_PAREN_TOKEN) {
+        TypeCast *cast = pool_alloc_struct(TypeCast);
+        cast->header = (NodeHeader) {TYPE_CAST, token};
+
+        skip_token(OPEN_PAREN_TOKEN);
+        cast->data_type = parse_data_type();
+        nonws_token();
+        skip_token(CLOSE_PAREN_TOKEN);
+        nonws_token();
+        cast->expr = parse_expr();
+        cast->header.end_token = token;
+        return (NodeHeader *) cast;
     }
 
     assert(0);

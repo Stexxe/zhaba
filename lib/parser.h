@@ -15,6 +15,7 @@ typedef enum {
     DECLARATION, ASSIGNMENT,
     BREAK_STATEMENT,
     VAR_REFERENCE, DEFINE_REFERENCE,
+    TYPE_CAST,
     ARRAY_ACCESS,
     STRUCT_INIT,
     UNARY_OP,
@@ -181,6 +182,12 @@ typedef struct {
     NodeHeader header;
     Token *id;
 } VarReference;
+
+typedef struct {
+    NodeHeader header;
+    DataType *data_type;
+    NodeHeader *expr;
+} TypeCast;
 
 typedef struct {
     NodeHeader header;
