@@ -12,13 +12,16 @@
 #include "../lib/lib.h"
 #include "../lib/parser.h"
 
-static char *path_ext(char *p);
 static char *path_joinm(char *p1, char *p2);
 static char *path_replace_ext(char *p, char *ext);
+static bool endswith(char *hay, char *needle);
 
 static void decode_source(char *);
 static void print_context(char *ctx, int pos, int target_pos);
 static void write_escape_invisible(char, FILE *);
+static void assert_equal(char *expfile, char *actual_str, char *testname);
+
+static void run_prep_tests(char *dir);
 
 #define SOURCE_MAX_LEN 8096
 static char source[SOURCE_MAX_LEN];
@@ -51,11 +54,14 @@ int main(int argc, char *argv[]) {
 
     while ((ent = readdir(dir)) != NULL) {
         if (strcmp(ent->d_name, ".") == 0 || strcmp(ent->d_name, "..") == 0) continue;
-        assert(ent->d_type == DT_REG);
+
+        if (strcmp("prep", ent->d_name) == 0) {
+            run_prep_tests(path_joinm(argv[1], ent->d_name));
+        }
 
         if (argc == 3 && strcmp(argv[2], ent->d_name) != 0) continue;
 
-        if (strcmp(path_ext(ent->d_name), ".c") == 0) {
+        if (endswith(ent->d_name, ".c") == 0) {
             char *srcpath = path_joinm(argv[1], ent->d_name);
             RenderError err;
             RenderErrorType res = render(srcpath, outdir, &err);
@@ -103,69 +109,99 @@ int main(int argc, char *argv[]) {
             decode_source(source);
 
             char *exp_filepath = path_joinm(argv[1], htmlfilename);
-            FILE *expf = fopen(exp_filepath, "r");
-
-            if (!expf) {
-                fprintf(stderr, "render: cannot open %s\n", exp_filepath);
-                exit(EXIT_FAILURE);
-            }
-
-            int line, column;
-            line = column = 1;
-            int expc;
-            char *actp;
-            int exp_ctx_pos = 0;
-            int act_ctx_pos = 0;
-            for (expc = getc(expf), actp = decoded_source; expc != EOF && *actp != '\0'; expc = getc(expf), actp++) {
-                exp_ctx[exp_ctx_pos++ % MAX_CONTEXT] = (char) expc;
-                actual_ctx[act_ctx_pos++ % MAX_CONTEXT] = *actp;
-
-                if (expc == *actp) {
-                    if (expc == '\n') {
-                        line++;
-                        column = 1;
-                    }
-                } else {
-                    break;
-                }
-
-                column++;
-            }
-
-            if (expc != EOF || *actp != '\0') {
-                int exp_target_pos = (exp_ctx_pos - 1) % MAX_CONTEXT;
-                int act_target_pos = (act_ctx_pos - 1) % MAX_CONTEXT;
-                int k = MAX_CONTEXT / 2;
-                while ((expc = getc(expf)) != EOF && k-- > 0) {
-                    exp_ctx[exp_ctx_pos++ % MAX_CONTEXT] = (char) expc;
-                }
-
-                char c;
-                k = MAX_CONTEXT / 2;
-                while ((c = *++actp) != '\0' && k-- > 0) {
-                    actual_ctx[act_ctx_pos++ % MAX_CONTEXT] = c;
-                }
-
-                k = MAX_CONTEXT / 2;
-
-                fprintf(stderr, "Case %s failed. ", ent->d_name);
-                fprintf(stderr, "Unexpected character '");
-                write_escape_invisible(actual_ctx[act_target_pos], stderr);
-                fprintf(stderr, "' at %d:%d\n", line, column);
-
-                fprintf(stderr, "Expect: ");
-                print_context(exp_ctx, exp_ctx_pos, exp_target_pos);
-                fprintf(stderr, "\n\n");
-                fprintf(stderr, "Actual: ");
-                print_context(actual_ctx, act_ctx_pos, act_target_pos);
-                fprintf(stderr, "\n\n");
-            }
-
-            fclose(expf);
+            assert_equal(exp_filepath, decoded_source, ent->d_name);
         }
     }
 
     return 0;
+}
+
+static void run_prep_tests(char *dir) {
+    DIR *dirp = opendir(dir);
+
+    if (!dirp) {
+        fprintf(stderr, "Could not open %s\n", dir);
+        exit(EXIT_FAILURE);
+    }
+
+    struct dirent *ent;
+
+    while ((ent = readdir(dirp)) != NULL) {
+        if (endswith(ent->d_name, ".c") && !endswith(ent->d_name, ".exp.c")) {
+            char *expanded_src = prep_expand(path_joinm(dir, ent->d_name));
+            char *exp_filepath = path_joinm(dir, path_replace_ext(ent->d_name, ".exp.c"));
+            assert_equal(exp_filepath, expanded_src, ent->d_name);
+        }
+    }
+}
+
+static void assert_equal(char *expfile, char *actual_str, char *testname) {
+    FILE *expf = fopen(expfile, "r");
+
+    if (!expf) {
+        fprintf(stderr, "assert_equal: cannot open %s\n", expfile);
+        exit(EXIT_FAILURE);
+    }
+
+    int line, column;
+    line = column = 1;
+    int expc;
+    char *actp;
+    int exp_ctx_pos = 0;
+    int act_ctx_pos = 0;
+    for (expc = getc(expf), actp = actual_str; expc != EOF && *actp != '\0'; expc = getc(expf), actp++) {
+        exp_ctx[exp_ctx_pos++ % MAX_CONTEXT] = (char) expc;
+        actual_ctx[act_ctx_pos++ % MAX_CONTEXT] = *actp;
+
+        if (expc == *actp) {
+            if (expc == '\n') {
+                line++;
+                column = 1;
+            }
+        } else {
+            break;
+        }
+
+        column++;
+    }
+
+    bool act_empty = actp - actual_str == 0;
+
+    if (act_empty) {
+        exp_ctx[exp_ctx_pos++ % MAX_CONTEXT] = (char) expc;
+    }
+
+    if (expc != EOF || *actp != '\0') {
+        int exp_target_pos = (exp_ctx_pos - 1) % MAX_CONTEXT;
+        int act_target_pos = (act_ctx_pos - 1) % MAX_CONTEXT;
+        int k = MAX_CONTEXT / 2;
+        while ((expc = getc(expf)) != EOF && k-- > 0) {
+            exp_ctx[exp_ctx_pos++ % MAX_CONTEXT] = (char) expc;
+        }
+
+        char c;
+        k = MAX_CONTEXT / 2;
+        while (*actp != '\0' && (c = *++actp) != '\0' && k-- > 0) {
+            actual_ctx[act_ctx_pos++ % MAX_CONTEXT] = c;
+        }
+
+        k = MAX_CONTEXT / 2;
+
+        fprintf(stderr, "Case %s failed. ", testname);
+        fprintf(stderr, "Unexpected character '");
+        if (!act_empty) write_escape_invisible(actual_ctx[act_target_pos], stderr);
+        fprintf(stderr, "' at %d:%d\n", line, column);
+
+        fprintf(stderr, "Expect: ");
+        print_context(exp_ctx, exp_ctx_pos, exp_target_pos);
+        fprintf(stderr, "\n\n");
+        fprintf(stderr, "Actual: ");
+        print_context(actual_ctx, act_ctx_pos, act_target_pos);
+        fprintf(stderr, "\n\n");
+        exit(EXIT_FAILURE);
+    }
+
+    fclose(expf);
 }
 
 static void write_escape_invisible(char c, FILE *f) {
@@ -257,17 +293,6 @@ static void decode_source(char *src) {
     *destp = '\0';
 }
 
-static char *path_ext(char *p) {
-    char *cp;
-    for (cp = p; *cp != '\0'; cp++)
-        ;
-
-    for (; cp >= p && *cp != '.'; cp--)
-        ;
-
-    return *cp == '.' ? cp : cp + 1;
-}
-
 static char *path_joinm(char *p1, char *p2) {
     char *p = (char *) malloc(strlen(p1) + strlen(p2) + 2);
     assert(p != NULL);
@@ -290,4 +315,13 @@ static char *path_replace_ext(char *p, char *ext) {
     }
 
     return p;
+}
+
+static bool endswith(char *hay, char *needle) {
+    char *hp, *np;
+
+    for (hp = hay + strlen(hay), np = needle + strlen(needle); hp >= hay && np >= needle && *np == *hp; hp--, np--)
+        ;
+
+    return np < needle;
 }

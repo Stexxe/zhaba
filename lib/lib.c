@@ -16,25 +16,9 @@
 
 void write_css(unsigned char *data, unsigned int data_len, char *filename, char *dir);
 
-// void extract_defines(NodeHeader *node) {
-//     // DefineTable *def_table = prep_define_newtable();
-//     NodeHeader *st, *head_st;
-//     while (node != NULL) {
-//         // if (node->type == FUNC_DEF) {
-//         //     FuncDef *func = (FuncDef *) node;
-//         //     for (head_st = func->last_stmt, st = head_st->next; st != head_st; st = st->next) {
-//         //         printf("%d\n", st->type);
-//         //     }
-//         // }
-//
-//         if (node->type == DEFINE_DIRECTIVE) {
-//             Define *def = (Define *) node;
-//             prep_define_set(def_table, def->id->span, def->expr);
-//         }
-//
-//         node = node->next;
-//     }
-// }
+char *prep_expand(char *srcfile) {
+    return "";
+}
 
 RenderErrorType render(char *srcfile, char *dstdir, RenderError *err) {
     FILE *srcfp = fopen(srcfile, "r");

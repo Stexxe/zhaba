@@ -1,4 +1,3 @@
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -39,7 +38,7 @@ int main(int argc, char** argv) {
             } break;
             case MEM_ALLOC_ERROR: {
                 throwerr("Unable to allocate memory\n");
-            }
+            } break;
             case LEXER_ERROR: {
                 LexerError *lerr = (LexerError *) err.error;
                 throwerr("tokenize: unexpected token '%c' at %d:%d", lerr->token, lerr->line, lerr->column);
