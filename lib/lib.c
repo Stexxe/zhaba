@@ -16,10 +16,6 @@
 
 void write_css(unsigned char *data, unsigned int data_len, char *filename, char *dir);
 
-char *prep_expand(char *srcfile) {
-    return "";
-}
-
 RenderErrorType render(char *srcfile, char *dstdir, RenderError *err) {
     FILE *srcfp = fopen(srcfile, "r");
 
@@ -31,9 +27,9 @@ RenderErrorType render(char *srcfile, char *dstdir, RenderError *err) {
     long srclen = ftell(srcfp);
     rewind(srcfp);
 
-    if (pool_init(1024 * 1024) < 0) {
-        return MEM_ALLOC_ERROR;
-    }
+    // if (pool_init(1024 * 1024) < 0) {
+    //     return MEM_ALLOC_ERROR;
+    // }
 
     byte *srcbuf = pool_alloc(srclen, byte);
     fread(srcbuf, 1, srclen, srcfp);
@@ -67,7 +63,7 @@ RenderErrorType render(char *srcfile, char *dstdir, RenderError *err) {
 
     gen_html(node, srcfile, nlines, html_filep);
     fclose(html_filep);
-    pool_close();
+    // pool_close();
     return SUCCESS;
 }
 

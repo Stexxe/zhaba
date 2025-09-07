@@ -11,6 +11,7 @@
 #include "../lib/lexer.h"
 #include "../lib/lib.h"
 #include "../lib/parser.h"
+#include "../lib/prep.h"
 
 static char *path_joinm(char *p1, char *p2);
 static char *path_replace_ext(char *p, char *ext);
@@ -31,6 +32,8 @@ static char decoded_source[SOURCE_MAX_LEN];
 static char actual_ctx[MAX_CONTEXT];
 static char exp_ctx[MAX_CONTEXT];
 
+#define MAX_MEM (32 * 1024 * 1024)
+
 int main(int argc, char *argv[]) {
     if (argc < 2) {
         fprintf(stderr, "Usage: %s cases-dir\n", argv[0]);
@@ -42,6 +45,10 @@ int main(int argc, char *argv[]) {
     if (!dir) {
         fprintf(stderr, "Could not open %s\n", argv[1]);
         exit(EXIT_FAILURE);
+    }
+
+    if (pool_init(MAX_MEM) < 0) {
+        return fprintf(stderr, "test: cannot allocate pool of %d bytes\n", MAX_MEM);
     }
 
     struct dirent *ent;

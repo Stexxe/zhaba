@@ -14,6 +14,5 @@ typedef struct {
 } RenderError;
 
 RenderErrorType render(char *srcfile, char *dstdir, RenderError *);
-char *prep_expand(char *srcfile);
 
 #endif // LIB_H
