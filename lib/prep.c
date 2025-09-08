@@ -1,7 +1,9 @@
 #include "prep.h"
 
+#include <assert.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "common.h"
 #include "parser.h"
@@ -94,7 +96,7 @@ typedef struct {
     void (*expand)(FILE *, char *);
 } Expander;
 
-#define MAX_BUF_SIZE 512
+#define MAX_BUF_SIZE 1024
 static char buf[MAX_BUF_SIZE];
 
 static void expand_nothing(FILE* srcfp, char *out) {}
@@ -165,6 +167,24 @@ char *prep_expand(char *srcfile) {
 
     if (!srcfp) return NULL; // TODO: Error handling
 
+    char *srcdir_end;
+
+    for (srcdir_end = srcfile + strlen(srcfile); srcdir_end >= srcfile && *srcdir_end != '/'; srcdir_end--)
+        ;
+
+    char *dirpath;
+    if (srcdir_end >= srcfile) {
+        dirpath = pool_alloc(srcdir_end - srcfile + 1, char);
+        strncpy(dirpath, srcfile, srcdir_end - srcfile);
+    } else {
+        dirpath = pool_alloc(1 + 1, char);
+        strncpy(dirpath, ".", 1);
+    }
+
+    int outsz = 2 * 1024 * 1024;
+    char *out = pool_alloc(outsz, char);
+    char *outp = out;
+
     int c, i;
     while ((c = getc(srcfp)) != EOF) {
         if (c == '#') {
@@ -175,12 +195,49 @@ char *prep_expand(char *srcfile) {
 
             *directive = '\0';
 
-            if ((i = binsearch_lex_span(buf, prep_directives, PREP_DIRECTIVES_SIZE)) >= 0) {
-                if (c != EOF) ungetc(c, srcfp);
-                prep_directives[i].expand(srcfp);
+            if (strcmp(buf, "include") == 0) {
+                while ((c = getc(srcfp)) != EOF && isspace(c))
+                    ;
+
+                if (c == '"') {
+                    char *local_path = buf;
+                    while ((c = getc(srcfp)) != EOF && c != '"') {
+                        *local_path++ = (char) c;
+                    }
+
+                    *local_path = '\0';
+
+                    while ((c = getc(srcfp)) != EOF && isspace(c) && c != '\n')
+                        ;
+
+                    char *inc_path = path_join(2, dirpath, buf);
+
+                    FILE *incf = fopen(inc_path, "r");
+                    assert(incf != NULL); // TODO: Error handling
+
+                    fseek(incf, 0, SEEK_END);
+                    size_t inc_size = ftell(incf);
+                    fseek(incf, 0, SEEK_SET);
+                    size_t rsz;
+
+                    while ((rsz = fread(outp, 1, inc_size, incf)) > 0) {
+                        outp += rsz;
+                        outsz -= (int) rsz;
+                    }
+
+                    assert(outsz >= 0);
+                }
             }
+
+            // if ((i = binsearch_lex_span(buf, prep_directives, PREP_DIRECTIVES_SIZE)) >= 0) {
+            //     if (c != EOF) ungetc(c, srcfp);
+            //     prep_directives[i].expand(srcfp);
+            // }
+        } else { // TODO: Handle string, char literals, comments
+            *outp++ = (char) c;
+            outsz--;
         }
     }
 
-    return "";
+    return out;
 }

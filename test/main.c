@@ -64,11 +64,12 @@ int main(int argc, char *argv[]) {
 
         if (strcmp("prep", ent->d_name) == 0) {
             run_prep_tests(path_joinm(argv[1], ent->d_name));
+            continue;
         }
 
         if (argc == 3 && strcmp(argv[2], ent->d_name) != 0) continue;
 
-        if (endswith(ent->d_name, ".c") == 0) {
+        if (endswith(ent->d_name, ".c")) {
             char *srcpath = path_joinm(argv[1], ent->d_name);
             RenderError err;
             RenderErrorType res = render(srcpath, outdir, &err);
