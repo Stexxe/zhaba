@@ -136,9 +136,11 @@ static void run_prep_tests(char *dir) {
 
     int outsz = 2 * 1024;
     char *out = pool_alloc(outsz, char);
+    DefineTable *def_table = prep_define_newtable();
+
     while ((ent = readdir(dirp)) != NULL) {
         if (endswith(ent->d_name, ".c") && !endswith(ent->d_name, ".exp.c")) {
-            char *expanded_src = prep_expand(path_joinm(dir, ent->d_name), out, outsz);
+            char *expanded_src = prep_expand(path_joinm(dir, ent->d_name), def_table, out, &outsz);
             char *exp_filepath = path_joinm(dir, path_replace_ext(ent->d_name, ".exp.c"));
             assert_equal(exp_filepath, expanded_src, ent->d_name);
         }
@@ -175,7 +177,7 @@ static void assert_equal(char *expfile, char *actual_str, char *testname) {
         column++;
     }
 
-    bool act_empty = actp - actual_str == 0;
+    bool act_empty = strlen(actual_str) == 0;
 
     if (act_empty) {
         exp_ctx[exp_ctx_pos++ % MAX_CONTEXT] = (char) expc;

@@ -150,6 +150,25 @@ char *path_basename_noext(char *path) {
     return r;
 }
 
+char *path_join_ssp(char *p1, Span p2) {
+    size_t len = strlen(p1) + (p2.end - p2.ptr) + 1 + 1;
+    char *r = pool_alloc(len, char);
+
+    char *pos = r;
+
+    while ((*pos++ = *p1++))
+        ;
+    pos--;
+    *pos++ = '/';
+
+    for (; p2.ptr < p2.end; p2.ptr++) {
+        *pos++ = *(char *) p2.ptr;
+    }
+
+    *pos = '\0';
+    return r;
+}
+
 char *path_join(int count, ...) {
     va_list ap;
     va_start(ap, count);
