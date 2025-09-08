@@ -162,7 +162,7 @@ static int binsearch_lex_span(char *target, Expander *arr, size_t size) {
     return -1;
 }
 
-char *prep_expand(char *srcfile) {
+char *prep_expand(char *srcfile, char *out, int outsz) {
     FILE *srcfp = fopen(srcfile, "r");
 
     if (!srcfp) return NULL; // TODO: Error handling
@@ -181,8 +181,8 @@ char *prep_expand(char *srcfile) {
         strncpy(dirpath, ".", 1);
     }
 
-    int outsz = 2 * 1024 * 1024;
-    char *out = pool_alloc(outsz, char);
+    // int outsz = 2 * 1024 * 1024;
+    // char *out = pool_alloc(outsz, char);
     char *outp = out;
 
     int c, i;
@@ -212,19 +212,7 @@ char *prep_expand(char *srcfile) {
 
                     char *inc_path = path_join(2, dirpath, buf);
 
-                    FILE *incf = fopen(inc_path, "r");
-                    assert(incf != NULL); // TODO: Error handling
-
-                    fseek(incf, 0, SEEK_END);
-                    size_t inc_size = ftell(incf);
-                    fseek(incf, 0, SEEK_SET);
-                    size_t rsz;
-
-                    while ((rsz = fread(outp, 1, inc_size, incf)) > 0) {
-                        outp += rsz;
-                        outsz -= (int) rsz;
-                    }
-
+                    prep_expand(inc_path, outp, outsz);
                     assert(outsz >= 0);
                 }
             }

@@ -134,9 +134,11 @@ static void run_prep_tests(char *dir) {
 
     struct dirent *ent;
 
+    int outsz = 2 * 1024;
+    char *out = pool_alloc(outsz, char);
     while ((ent = readdir(dirp)) != NULL) {
         if (endswith(ent->d_name, ".c") && !endswith(ent->d_name, ".exp.c")) {
-            char *expanded_src = prep_expand(path_joinm(dir, ent->d_name));
+            char *expanded_src = prep_expand(path_joinm(dir, ent->d_name), out, outsz);
             char *exp_filepath = path_joinm(dir, path_replace_ext(ent->d_name, ".exp.c"));
             assert_equal(exp_filepath, expanded_src, ent->d_name);
         }
