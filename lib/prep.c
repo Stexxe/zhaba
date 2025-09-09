@@ -217,6 +217,9 @@ static char *expand(Span sp, char *dirpath, DefineTable *def_table, char *out, i
     for (byte *srcp = sp.ptr; srcp < sp.end;) {
         if (*srcp == '#') {
             ++srcp;
+            for ( ; srcp < sp.end && isspace(*srcp); srcp++)
+                ;
+
             Span directive = {srcp, srcp};
 
             for ( ; srcp < sp.end && !isspace(*srcp) ; srcp++) {
