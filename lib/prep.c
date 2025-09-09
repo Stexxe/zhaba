@@ -266,7 +266,7 @@ static char *expand(Span sp, char *dirpath, DefineTable *def_table, char *out, i
                 }
 
                 prep_define_set(def_table, id, content);
-            } else if (spanstrcmp(directive, "ifndef") == 0) {
+            } else if (spanstrcmp(directive, "ifdef") == 0 || spanstrcmp(directive, "ifndef") == 0) {
                 for ( ; srcp < sp.end && isspace(*srcp); srcp++)
                     ;
 
@@ -292,7 +292,9 @@ static char *expand(Span sp, char *dirpath, DefineTable *def_table, char *out, i
                     }
                 }
 
-                if (prep_define_get(def_table, id) == NULL) {
+                void *repl = prep_define_get(def_table, id);
+
+                if ((spanstrcmp(directive, "ifdef") == 0) && repl || (spanstrcmp(directive, "ifndef") == 0 && !repl)) {
                     outp = expand(content, dirpath, def_table, outp, outsz);
                 }
 
