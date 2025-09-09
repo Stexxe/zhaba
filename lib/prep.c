@@ -72,6 +72,7 @@ void prep_define_set(DefineTable *table, Span key, void *value) {
         if (found) {
             nkv->next = found->next;
             if (prev_found) prev_found->next = nkv;
+            else table->ptr[h] = nkv;
         } else {
             nkv->next = head;
             table->ptr[h] = nkv;
@@ -208,6 +209,7 @@ char *prep_expand(char *srcfile, DefineTable *def_table, char *out, int *outsz) 
 
 #define min(x, y) ((x) < (y) ? (x) : (y))
 
+// TODO: Combine out and outsz
 static char *expand(Span sp, char *dirpath, DefineTable *def_table, char *out, int *outsz) {
     char *outp = out;
     assert(*outsz > 0);
@@ -332,6 +334,22 @@ static char *expand(Span sp, char *dirpath, DefineTable *def_table, char *out, i
                 }
 
                 srcp = content.end + termlen + (*content.end == '\n' ? 1 : 0);
+            } else if (spanstrcmp(directive, "undef") == 0) {
+                for ( ; srcp < sp.end && isspace(*srcp); srcp++)
+                    ;
+
+                Span id = {srcp, srcp};
+
+                for ( ; srcp < sp.end && !isspace(*srcp) ; srcp++) {
+                    id.end++;
+                }
+
+                for ( ; srcp < sp.end && isspace(*srcp) && *srcp != '\n'; srcp++)
+                    ;
+
+                if (srcp < sp.end && *srcp == '\n') srcp++;
+
+                prep_define_set(def_table, id, NULL);
             } else {
                 fprintf(stderr, "expand: unrecognized directive ");
                 for (byte *cp = directive.ptr; cp < directive.end; cp++) {
