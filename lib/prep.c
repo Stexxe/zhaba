@@ -262,6 +262,42 @@ char *prep_expand(char *srcfile, DefineTable *def_table, char *out, int *outsz) 
                 fprintf(stderr, "\n");
                 assert(0);
             }
+        } else if (*srcp == '/') {
+            Span comment = {srcp, srcp + 1};
+
+            if (comment.end < src + srcsize) {
+                if (*comment.end == '/') {
+                    for (; comment.end < src + srcsize && *comment.end != '\n' ; comment.end++)
+                        ;
+                } else if (*comment.end == '*') {
+                    for (; comment.end+1 < src + srcsize && (*comment.end != '*' || *(comment.end+1) != '/'); comment.end++)
+                        ;
+
+                    comment.end += 2;
+                }
+            }
+
+            for (byte *cp = comment.ptr; cp < src + srcsize && cp < comment.end; cp++) {
+                *outp++ = (char) *cp;
+                *outsz -= 1;
+            }
+            srcp = comment.end;
+        } else if (*srcp == '"' || *srcp == '\'') {
+            Span literal = {srcp, srcp + 1};
+
+            for (; literal.end < src + srcsize; literal.end++) {
+                if (*literal.end == '\\') {
+                    ++literal.end;
+                } else if (*literal.end == *literal.ptr) {
+                    break;
+                }
+            }
+
+            for (byte *cp = literal.ptr; cp < src + srcsize && cp < literal.end; cp++) {
+                *outp++ = (char) *cp;
+                *outsz -= 1;
+            }
+            srcp = literal.end;
         } else if (isalpha(*srcp)) {
             Span id = {srcp, srcp};
             for ( ; srcp < src + srcsize && isalnum(*srcp) || *srcp == '_'; srcp++) {
