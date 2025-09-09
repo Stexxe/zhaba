@@ -132,16 +132,15 @@ static void run_prep_tests(char *dir) {
         exit(EXIT_FAILURE);
     }
 
-    const int size = 2 * 1024;
     struct dirent *ent;
     while ((ent = readdir(dirp)) != NULL) {
         if (endswith(ent->d_name, ".c") && !endswith(ent->d_name, ".exp.c")) {
-            int outsz = size;
-            char *out = pool_alloc(outsz, char);
+            int outsz = 2 * 1024;
+            char *expanded_src = pool_alloc(outsz, char);
             DefineTable *def_table = prep_define_newtable();
 
-            char *expanded_src = prep_expand(path_joinm(dir, ent->d_name), def_table, out, &outsz);
-            expanded_src[size - outsz] = '\0';
+            char *srcend = prep_expand(path_joinm(dir, ent->d_name), def_table, expanded_src, &outsz);
+            *srcend = '\0';
             char *exp_filepath = path_joinm(dir, path_replace_ext(ent->d_name, ".exp.c"));
             assert_equal(exp_filepath, expanded_src, ent->d_name);
         }
