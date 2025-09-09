@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/stat.h>
 
 static void *pool_base;
 static void *pool_current;
@@ -216,4 +217,9 @@ char *path_withext(char *name, char *ext) {
     pos--;
     *pos = '\0';
     return r;
+}
+
+bool file_exists(char *path) {
+    struct stat st;
+    return stat(path, &st) == 0;
 }

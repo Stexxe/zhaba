@@ -1,6 +1,7 @@
 #ifndef ZHABA_COMMON_H
 #define ZHABA_COMMON_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
 
@@ -39,5 +40,7 @@ char *path_basename_noext(char *);
 char *path_join(int, ...);
 char *path_join_ssp(char *p1, Span p2);
 char *path_withext(char *, char *);
+
+bool file_exists(char *);
 
 #endif //ZHABA_COMMON_H

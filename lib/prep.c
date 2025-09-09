@@ -161,6 +161,14 @@ void *prep_define_get(DefineTable *table, Span key) {
 //     return -1;
 // }
 
+static char **search_paths;
+static size_t search_paths_size;
+
+void prep_search_paths_set(char **paths, size_t paths_size) {
+    search_paths = paths;
+    search_paths_size = paths_size;
+}
+
 static char *expand(Span sp, char *dirpath, DefineTable *def_table, char *out, int *outsz);
 
 byte *read_src(char *path, size_t *size) {
@@ -235,6 +243,31 @@ static char *expand(Span sp, char *dirpath, DefineTable *def_table, char *out, i
 
                     char *inc_path = path_join_ssp(dirpath, local_path);
 
+                    outp = prep_expand(inc_path, def_table, outp, outsz);
+                } else if (*srcp == '<') {
+                    ++srcp;
+                    Span ext_path = {srcp, srcp};
+
+                    for ( ; srcp < sp.end && *srcp != '>'; srcp++) {
+                        ext_path.end++;
+                    }
+
+                    assert(*srcp == '>');
+                    ++srcp;
+
+                    for ( ; srcp < sp.end && isspace(*srcp) && *srcp != '\n'; srcp++)
+                        ;
+
+                    if (srcp < sp.end && *srcp == '\n') srcp++;
+
+                    char *inc_path = NULL;
+                    for (int i = 0; i < search_paths_size; i++) {
+                        char *p = search_paths[i];
+                        inc_path = path_join_ssp(p, ext_path);
+                        if (file_exists(inc_path)) break;
+                    }
+
+                    assert(inc_path != NULL);
                     outp = prep_expand(inc_path, def_table, outp, outsz);
                 }
             } else if (spanstrcmp(directive, "define") == 0) {

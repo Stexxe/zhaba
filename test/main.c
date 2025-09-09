@@ -133,12 +133,14 @@ static void run_prep_tests(char *dir) {
     }
 
     struct dirent *ent;
+    char *ext_include = path_joinm(dir, "external");
     while ((ent = readdir(dirp)) != NULL) {
         if (endswith(ent->d_name, ".c") && !endswith(ent->d_name, ".exp.c")) {
             int outsz = 2 * 1024;
             char *expanded_src = pool_alloc(outsz, char);
             DefineTable *def_table = prep_define_newtable();
 
+            prep_search_paths_set(&ext_include, 1);
             char *srcend = prep_expand(path_joinm(dir, ent->d_name), def_table, expanded_src, &outsz);
             *srcend = '\0';
             char *exp_filepath = path_joinm(dir, path_replace_ext(ent->d_name, ".exp.c"));

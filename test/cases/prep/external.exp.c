@@ -1,0 +1,1 @@
+extern void some(); //ZHABA_INCLUDE_H
