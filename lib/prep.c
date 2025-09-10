@@ -461,7 +461,8 @@ enum tokenType {
     PREP_PLUS_TOKEN,
     PREP_IDENTIFIER_TOKEN,
     PREP_DEFINED_TOKEN,
-    PREP_OPEN_PAREN_TOKEN, PREP_CLOSE_PAREN_TOKEN
+    PREP_OPEN_PAREN_TOKEN, PREP_CLOSE_PAREN_TOKEN,
+    PREP_AND_TOKEN
 };
 
 struct prepToken {
@@ -469,23 +470,21 @@ struct prepToken {
     Span span;
 };
 
-enum nodeType {
-    PREP_UNKNOWN_NODE,
-    PREP_NODE_DEFINED
-};
-
-struct prepNode {
-    enum nodeType type;
-    struct prepToken *start_token;
-    struct prepToken *end_token;
-};
-
-struct definedNode {
-    struct prepNode header;
-    struct prepToken *id;
-};
-
 static struct prepToken tokens[128];
+static int stack[64];
+static int stackTop = 0;
+
+static void push(int x) {
+    assert(stackTop < 64);
+    stack[stackTop++] = x;
+}
+
+static int pop() {
+    assert(stackTop > 0);
+    return stack[--stackTop];
+}
+
+static struct prepToken *eval(DefineTable *def_table, struct prepToken *tokenp, struct prepToken *end_token);
 
 static bool eval_expr(Span expr, DefineTable *def_table) {
     byte *p;
@@ -494,6 +493,13 @@ static bool eval_expr(Span expr, DefineTable *def_table) {
     for (p = expr.ptr; p < expr.end;) {
         if (*p == '+') {
             *tp++ = (struct prepToken) {PREP_PLUS_TOKEN, p, p + 1};
+        } else if (*p == '&') {
+            struct prepToken tok = {PREP_AND_TOKEN, p, p};
+            p++;
+            assert(*p == '&');
+            p++;
+            tok.span.end = p;
+            *tp++ = tok;
         } else if (isalpha(*p)) {
             struct prepToken tok = {PREP_IDENTIFIER_TOKEN, p, p};
             for ( ; isalnum(*p) || *p == '_' ; p++, tok.span.end++)
@@ -510,56 +516,27 @@ static bool eval_expr(Span expr, DefineTable *def_table) {
     }
 
     struct prepToken *end_token = tp;
-    struct prepToken *binop = NULL;
-    for (struct prepToken *t = tokens; t < end_token; t++) {
-        if (t->type == PREP_PLUS_TOKEN) { // Any binary op token
-            binop = t;
-            break;
-        }
+
+    for (struct prepToken *t = tokens; t < end_token; ) {
+        t = eval(def_table, t, end_token);
+    }
+    return (bool) pop();
+}
+
+static struct prepToken *eval(DefineTable *def_table, struct prepToken *tokenp, struct prepToken *end_token) {
+    switch (tokenp->type) {
+        case PREP_DEFINED_TOKEN: {
+            push(prep_define_get(def_table, (tokenp + 1)->span) != NULL);
+            tokenp += 2;
+        } break;
+        case PREP_AND_TOKEN: {
+            tokenp = eval(def_table, tokenp + 1, end_token);
+            push(pop() && pop());
+        } break;
+        default: {
+            assert(0);
+        } break;
     }
 
-    struct prepNode *root_node = NULL;
-
-    if (binop == NULL) {
-        struct prepToken *t = tokens;
-        struct prepNode *node;
-        switch (t->type) {
-            case PREP_DEFINED_TOKEN: {
-                struct definedNode *n = pool_alloc_struct(struct definedNode);
-                n->header = (struct prepNode) {PREP_NODE_DEFINED, t};
-                if (t->type == PREP_OPEN_PAREN_TOKEN) t++;
-                t++;
-                assert(t->type == PREP_IDENTIFIER_TOKEN);
-                n->id = t;
-                t++;
-                if (t->type == PREP_CLOSE_PAREN_TOKEN) t++;
-
-                n->header.end_token = t;
-                node = (struct prepNode *) n;
-            } break;
-            default: {
-                assert(0);
-            } break;
-        }
-
-        if (root_node == NULL) root_node = node;
-    } else {
-        // TODO: Handle binary op
-    }
-
-    bool res = false;
-
-    if (root_node) {
-        switch (root_node->type) {
-            case PREP_NODE_DEFINED: {
-                struct definedNode *n = (struct definedNode *) root_node;
-                res = prep_define_get(def_table, n->id->span) != NULL;
-            } break;
-            default: {
-                assert(0);
-            } break;
-        }
-    }
-
-    return res;
+    return tokenp;
 }
