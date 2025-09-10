@@ -210,61 +210,111 @@ char *prep_expand(char *srcfile, DefineTable *def_table, char *out, int *outsz) 
 
 #define min(x, y) ((x) < (y) ? (x) : (y))
 
+struct reader {
+    byte *ptr;
+    byte *end;
+    byte cur;
+};
+
+
+// true if it has something
+static bool readnext(struct reader *r) {
+    if (r->ptr >= r->end) return false;
+
+    r->cur = *r->ptr;
+    r->ptr++;
+
+    if (r->ptr >= r->end) return true;
+
+    if (r->cur == '\\') {
+        r->cur = (*r->ptr == '\n' ? ' ' : *r->ptr);
+        r->ptr++;
+    }
+
+    return true;
+}
+
+static void read_while(struct reader *r, int (*cmp)(int)) {
+    bool cond = true;
+    while (readnext(r) && (cond = cmp(r->cur)))
+        ;
+
+    if (!cond) {
+        r->ptr--;
+    }
+}
+
+static void read_until(struct reader *r, int (*cmp)(int)) {
+    bool cond = true;
+    while (readnext(r) && !(cond = cmp(r->cur)))
+        ;
+
+    if (cond) {
+        r->ptr--;
+    }
+}
+
+static void read_until_char(struct reader *r, byte c) {
+    bool cond = true;
+    while (readnext(r) && !(cond = (c == r->cur)))
+        ;
+
+    if (cond) {
+        r->ptr--;
+    }
+}
+
+static void read_spaces_until_lf(struct reader *r) {
+    while (readnext(r) && isspace(r->cur) && r->cur != '\n')
+        ;
+}
+
+static int isid(int c) {
+    return isalnum(c) || c == '_';
+}
+
 // TODO: Combine out and outsz
 static char *expand(Span sp, char *dirpath, DefineTable *def_table, char *out, int *outsz) {
     char *outp = out;
     assert(*outsz > 0);
 
-    for (byte *srcp = sp.ptr; srcp < sp.end;) {
-        if (*srcp == '#') {
-            ++srcp;
-            for ( ; srcp < sp.end && isspace(*srcp); srcp++)
-                ;
+    struct reader r = {.ptr = sp.ptr, .end = sp.end};
 
-            Span directive = {srcp, srcp};
-
-            for ( ; srcp < sp.end && !isspace(*srcp) ; srcp++) {
-                directive.end++;
-            }
+    while (readnext(&r)) {
+        if (r.cur == '#') {
+            read_while(&r, isspace);
+            Span directive = {r.ptr, r.ptr};
+            read_until(&r, isspace);
+            directive.end = r.ptr;
 
             if (spanstrcmp(directive, "include") == 0) {
-                for ( ; srcp < sp.end && isspace(*srcp); srcp++)
-                    ;
+                read_while(&r, isspace);
 
-                if (*srcp == '"') {
-                    ++srcp;
-                    Span local_path = {srcp, srcp};
+                if (r.cur == '"') {
+                    readnext(&r);
+                    Span local_path = {r.ptr, r.ptr};
 
-                    for ( ; srcp < sp.end && *srcp != '"'; srcp++) {
-                        local_path.end++;
-                    }
+                    read_until_char(&r, '"');
+                    local_path.end = r.ptr;
 
-                    assert(*srcp == '"');
-                    ++srcp;
+                    assert(r.cur == '"');
+                    readnext(&r);
 
-                    for ( ; srcp < sp.end && isspace(*srcp) && *srcp != '\n'; srcp++)
-                        ;
-
-                    if (srcp < sp.end && *srcp == '\n') srcp++;
-
+                    read_spaces_until_lf(&r);
                     char *inc_path = path_join_ssp(dirpath, local_path);
 
                     outp = prep_expand(inc_path, def_table, outp, outsz);
-                } else if (*srcp == '<') {
-                    ++srcp;
-                    Span ext_path = {srcp, srcp};
+                } else if (r.cur == '<') {
+                    readnext(&r);
+                    Span ext_path = {r.ptr, r.ptr};
 
-                    for ( ; srcp < sp.end && *srcp != '>'; srcp++) {
-                        ext_path.end++;
-                    }
+                    read_until_char(&r, '>');
+                    ext_path.end = r.ptr;
 
-                    assert(*srcp == '>');
-                    ++srcp;
+                    assert(r.cur == '>');
+                    readnext(&r);
 
-                    for ( ; srcp < sp.end && isspace(*srcp) && *srcp != '\n'; srcp++)
-                        ;
-
-                    if (srcp < sp.end && *srcp == '\n') srcp++;
+                    read_spaces_until_lf(&r);
 
                     char *inc_path = NULL;
                     for (int i = 0; i < search_paths_size; i++) {
@@ -277,50 +327,38 @@ static char *expand(Span sp, char *dirpath, DefineTable *def_table, char *out, i
                     outp = prep_expand(inc_path, def_table, outp, outsz);
                 }
             } else if (spanstrcmp(directive, "define") == 0) {
-                for ( ; srcp < sp.end && isspace(*srcp); srcp++)
-                    ;
+                read_while(&r, isspace);
 
-                Span id = {srcp, srcp};
+                Span id = {r.ptr, r.ptr};
 
-                for ( ; srcp < sp.end && !isspace(*srcp) ; srcp++) {
-                    id.end++;
-                }
-
-                for ( ; srcp < sp.end && isspace(*srcp) && *srcp != '\n'; srcp++)
+                read_until(&r, isspace);
+                id.end = r.ptr;
+                while (readnext(&r) && isspace(r.cur) && r.cur != '\n')
                     ;
 
                 Span *content = pool_alloc_struct(Span);
-                if (*srcp == '\n') {
+                if (r.cur == '\n') {
                     content->ptr = content->end = NULL;
-                    srcp = min(srcp + 1, sp.end);
+                    // r.ptr = min(r.ptr + 1, r.end);
                 } else {
-                    content->ptr = content->end = srcp;
-                    for ( ; srcp < sp.end && !isspace(*srcp) ; srcp++) {
-                        content->end++;
-                    }
-                    for ( ; srcp < sp.end && isspace(*srcp) && *srcp != '\n'; srcp++)
-                        ;
-
-                    if (srcp < sp.end && *srcp == '\n') srcp++;
+                    content->ptr = content->end = r.ptr;
+                    read_until(&r, isspace);
+                    content->end = r.ptr;
+                    read_spaces_until_lf(&r);
                 }
 
                 prep_define_set(def_table, id, content);
             } else if (spanstrcmp(directive, "ifdef") == 0 || spanstrcmp(directive, "ifndef") == 0) {
-                for ( ; srcp < sp.end && isspace(*srcp); srcp++)
-                    ;
+                read_while(&r, isspace);
 
-                Span id = {srcp, srcp};
+                Span id = {r.ptr, r.ptr};
 
-                for ( ; srcp < sp.end && !isspace(*srcp) ; srcp++) {
-                    id.end++;
-                }
+                read_until(&r, isspace);
+                id.end = r.ptr;
 
-                for ( ; srcp < sp.end && isspace(*srcp) && *srcp != '\n'; srcp++)
-                    ;
+                read_spaces_until_lf(&r);
 
-                if (srcp < sp.end && *srcp == '\n') srcp++;
-
-                Span content = {srcp, srcp};
+                Span content = {r.ptr, r.ptr};
 
                 char *term = "#endif";
                 size_t termlen = strlen(term);
@@ -337,38 +375,28 @@ static char *expand(Span sp, char *dirpath, DefineTable *def_table, char *out, i
                     outp = expand(content, dirpath, def_table, outp, outsz);
                 }
 
-                srcp = content.end + termlen + (*content.end == '\n' ? 1 : 0);
+                r.ptr = content.end + termlen + (*content.end == '\n' ? 1 : 0);
             } else if (spanstrcmp(directive, "undef") == 0) {
-                for ( ; srcp < sp.end && isspace(*srcp); srcp++)
-                    ;
+                read_while(&r, isspace);
 
-                Span id = {srcp, srcp};
+                Span id = {r.ptr, r.ptr};
 
-                for ( ; srcp < sp.end && !isspace(*srcp) ; srcp++) {
-                    id.end++;
-                }
+                read_until(&r, isspace);
+                id.end = r.ptr;
 
-                for ( ; srcp < sp.end && isspace(*srcp) && *srcp != '\n'; srcp++)
-                    ;
-
-                if (srcp < sp.end && *srcp == '\n') srcp++;
+                read_spaces_until_lf(&r);
 
                 prep_define_set(def_table, id, NULL);
             } else if (spanstrcmp(directive, "if") == 0) {
-                for ( ; srcp < sp.end && isspace(*srcp); srcp++)
-                    ;
+                read_while(&r, isspace);
 
-                Span expr = {srcp, srcp};
+                Span expr = {r.ptr, r.ptr};
 
-                for ( ; srcp < sp.end && *srcp != '\n'; srcp++) {
-                    expr.end++;
-                }
+                read_until_char(&r, '\n');
+                expr.end = r.ptr;
 
-                for ( ; srcp < sp.end && isspace(*srcp) && *srcp != '\n'; srcp++)
-                    ;
-
-                if (srcp < sp.end && *srcp == '\n') srcp++;
-                Span content = {srcp, srcp};
+                read_spaces_until_lf(&r);
+                Span content = {r.ptr, r.ptr};
 
                 char *term = "#endif";
                 size_t termlen = strlen(term);
@@ -383,17 +411,17 @@ static char *expand(Span sp, char *dirpath, DefineTable *def_table, char *out, i
                     outp = expand(content, dirpath, def_table, outp, outsz);
                 }
 
-                srcp = content.end + termlen + (*content.end == '\n' ? 1 : 0);
+                r.ptr = content.end + termlen + (*content.end == '\n' ? 1 : 0);
             } else {
-                fprintf(stderr, "expand: unrecognized directive ");
+                fprintf(stderr, "expand: unrecognized directive '");
                 for (byte *cp = directive.ptr; cp < directive.end; cp++) {
                     fprintf(stderr, "%c", *cp);
                 }
-                fprintf(stderr, "\n");
+                fprintf(stderr, "'\n");
                 assert(0);
             }
-        } else if (*srcp == '/') {
-            Span comment = {srcp, srcp + 1};
+        } else if (r.cur == '/') {
+            Span comment = {r.ptr-1, r.ptr};
 
             if (comment.end < sp.end) {
                 if (*comment.end == '/') {
@@ -411,9 +439,9 @@ static char *expand(Span sp, char *dirpath, DefineTable *def_table, char *out, i
                 *outp++ = (char) *cp;
                 *outsz -= 1;
             }
-            srcp = comment.end;
-        } else if (*srcp == '"' || *srcp == '\'') {
-            Span literal = {srcp, srcp + 1};
+            r.ptr = comment.end;
+        } else if (r.cur == '"' || r.cur == '\'') {
+            Span literal = {r.ptr, r.ptr + 1};
 
             for (; literal.end < sp.end; literal.end++) {
                 if (*literal.end == '\\') {
@@ -427,12 +455,11 @@ static char *expand(Span sp, char *dirpath, DefineTable *def_table, char *out, i
                 *outp++ = (char) *cp;
                 *outsz -= 1;
             }
-            srcp = literal.end;
-        } else if (isalpha(*srcp)) {
-            Span id = {srcp, srcp};
-            for ( ; srcp < sp.end && isalnum(*srcp) || *srcp == '_'; srcp++) {
-                id.end++;
-            }
+            r.ptr = literal.end;
+        } else if (isalpha(r.cur)) {
+            Span id = {r.ptr-1, r.ptr};
+            read_while(&r, isid);
+            id.end = r.ptr;
 
             Span *repl = (Span *) prep_define_get(def_table, id);
 
@@ -448,10 +475,251 @@ static char *expand(Span sp, char *dirpath, DefineTable *def_table, char *out, i
                 }
             }
         } else {
-            *outp++ = (char) *srcp++;
+            *outp++ = (char) r.cur;
             *outsz -= 1;
         }
     }
+
+    // for (byte *srcp = sp.ptr; srcp < sp.end;) {
+    //     readnext(&r);
+    //     if (b == '#') {
+    //         // ++srcp;
+    //
+    //         while (readnext(&srcp, sp.end) && isspace(readnext(&srcp, srcp))) {}
+    //         for ( ; srcp < sp.end && isspace(*srcp); srcp++)
+    //             ;
+    //
+    //         Span directive = {srcp, srcp};
+    //
+    //         for ( ; srcp < sp.end && !isspace(*srcp) ; srcp++) {
+    //             directive.end++;
+    //         }
+    //
+    //         if (spanstrcmp(directive, "include") == 0) {
+    //             for ( ; srcp < sp.end && isspace(*srcp); srcp++)
+    //                 ;
+    //
+    //             if (*srcp == '"') {
+    //                 ++srcp;
+    //                 Span local_path = {srcp, srcp};
+    //
+    //                 for ( ; srcp < sp.end && *srcp != '"'; srcp++) {
+    //                     local_path.end++;
+    //                 }
+    //
+    //                 assert(*srcp == '"');
+    //                 ++srcp;
+    //
+    //                 for ( ; srcp < sp.end && isspace(*srcp) && *srcp != '\n'; srcp++)
+    //                     ;
+    //
+    //                 if (srcp < sp.end && *srcp == '\n') srcp++;
+    //
+    //                 char *inc_path = path_join_ssp(dirpath, local_path);
+    //
+    //                 outp = prep_expand(inc_path, def_table, outp, outsz);
+    //             } else if (*srcp == '<') {
+    //                 ++srcp;
+    //                 Span ext_path = {srcp, srcp};
+    //
+    //                 for ( ; srcp < sp.end && *srcp != '>'; srcp++) {
+    //                     ext_path.end++;
+    //                 }
+    //
+    //                 assert(*srcp == '>');
+    //                 ++srcp;
+    //
+    //                 for ( ; srcp < sp.end && isspace(*srcp) && *srcp != '\n'; srcp++)
+    //                     ;
+    //
+    //                 if (srcp < sp.end && *srcp == '\n') srcp++;
+    //
+    //                 char *inc_path = NULL;
+    //                 for (int i = 0; i < search_paths_size; i++) {
+    //                     char *p = search_paths[i];
+    //                     inc_path = path_join_ssp(p, ext_path);
+    //                     if (file_exists(inc_path)) break;
+    //                 }
+    //
+    //                 assert(inc_path != NULL);
+    //                 outp = prep_expand(inc_path, def_table, outp, outsz);
+    //             }
+    //         } else if (spanstrcmp(directive, "define") == 0) {
+    //             for ( ; srcp < sp.end && isspace(*srcp); srcp++)
+    //                 ;
+    //
+    //             Span id = {srcp, srcp};
+    //
+    //             for ( ; srcp < sp.end && !isspace(*srcp) ; srcp++) {
+    //                 id.end++;
+    //             }
+    //
+    //             for ( ; srcp < sp.end && isspace(*srcp) && *srcp != '\n'; srcp++)
+    //                 ;
+    //
+    //             Span *content = pool_alloc_struct(Span);
+    //             if (*srcp == '\n') {
+    //                 content->ptr = content->end = NULL;
+    //                 srcp = min(srcp + 1, sp.end);
+    //             } else {
+    //                 content->ptr = content->end = srcp;
+    //                 for ( ; srcp < sp.end && !isspace(*srcp) ; srcp++) {
+    //                     content->end++;
+    //                 }
+    //                 for ( ; srcp < sp.end && isspace(*srcp) && *srcp != '\n'; srcp++)
+    //                     ;
+    //
+    //                 if (srcp < sp.end && *srcp == '\n') srcp++;
+    //             }
+    //
+    //             prep_define_set(def_table, id, content);
+    //         } else if (spanstrcmp(directive, "ifdef") == 0 || spanstrcmp(directive, "ifndef") == 0) {
+    //             for ( ; srcp < sp.end && isspace(*srcp); srcp++)
+    //                 ;
+    //
+    //             Span id = {srcp, srcp};
+    //
+    //             for ( ; srcp < sp.end && !isspace(*srcp) ; srcp++) {
+    //                 id.end++;
+    //             }
+    //
+    //             for ( ; srcp < sp.end && isspace(*srcp) && *srcp != '\n'; srcp++)
+    //                 ;
+    //
+    //             if (srcp < sp.end && *srcp == '\n') srcp++;
+    //
+    //             Span content = {srcp, srcp};
+    //
+    //             char *term = "#endif";
+    //             size_t termlen = strlen(term);
+    //             for ( ; content.end + termlen <= sp.end; content.end++) {
+    //                 if (spanstrcmp((Span){content.end, content.end + termlen}, term) == 0) {
+    //                     if (*(content.end-1) == '\n') content.end--;
+    //                     break;
+    //                 }
+    //             }
+    //
+    //             void *repl = prep_define_get(def_table, id);
+    //
+    //             if ((spanstrcmp(directive, "ifdef") == 0) && repl || (spanstrcmp(directive, "ifndef") == 0 && !repl)) {
+    //                 outp = expand(content, dirpath, def_table, outp, outsz);
+    //             }
+    //
+    //             srcp = content.end + termlen + (*content.end == '\n' ? 1 : 0);
+    //         } else if (spanstrcmp(directive, "undef") == 0) {
+    //             for ( ; srcp < sp.end && isspace(*srcp); srcp++)
+    //                 ;
+    //
+    //             Span id = {srcp, srcp};
+    //
+    //             for ( ; srcp < sp.end && !isspace(*srcp) ; srcp++) {
+    //                 id.end++;
+    //             }
+    //
+    //             for ( ; srcp < sp.end && isspace(*srcp) && *srcp != '\n'; srcp++)
+    //                 ;
+    //
+    //             if (srcp < sp.end && *srcp == '\n') srcp++;
+    //
+    //             prep_define_set(def_table, id, NULL);
+    //         } else if (spanstrcmp(directive, "if") == 0) {
+    //             for ( ; srcp < sp.end && isspace(*srcp); srcp++)
+    //                 ;
+    //
+    //             Span expr = {srcp, srcp};
+    //
+    //             for ( ; srcp < sp.end && *srcp != '\n'; srcp++) {
+    //                 expr.end++;
+    //             }
+    //
+    //             for ( ; srcp < sp.end && isspace(*srcp) && *srcp != '\n'; srcp++)
+    //                 ;
+    //
+    //             if (srcp < sp.end && *srcp == '\n') srcp++;
+    //             Span content = {srcp, srcp};
+    //
+    //             char *term = "#endif";
+    //             size_t termlen = strlen(term);
+    //             for ( ; content.end + termlen <= sp.end; content.end++) {
+    //                 if (spanstrcmp((Span){content.end, content.end + termlen}, term) == 0) {
+    //                     if (*(content.end-1) == '\n') content.end--;
+    //                     break;
+    //                 }
+    //             }
+    //
+    //             if (eval_expr(expr, def_table)) {
+    //                 outp = expand(content, dirpath, def_table, outp, outsz);
+    //             }
+    //
+    //             srcp = content.end + termlen + (*content.end == '\n' ? 1 : 0);
+    //         } else {
+    //             fprintf(stderr, "expand: unrecognized directive ");
+    //             for (byte *cp = directive.ptr; cp < directive.end; cp++) {
+    //                 fprintf(stderr, "%c", *cp);
+    //             }
+    //             fprintf(stderr, "\n");
+    //             assert(0);
+    //         }
+    //     } else if (b == '/') {
+    //         Span comment = {srcp, srcp + 1};
+    //
+    //         if (comment.end < sp.end) {
+    //             if (*comment.end == '/') {
+    //                 for (; comment.end < sp.end && *comment.end != '\n' ; comment.end++)
+    //                     ;
+    //             } else if (*comment.end == '*') {
+    //                 for (; comment.end+1 < sp.end && (*comment.end != '*' || *(comment.end+1) != '/'); comment.end++)
+    //                     ;
+    //
+    //                 comment.end += 2;
+    //             }
+    //         }
+    //
+    //         for (byte *cp = comment.ptr; cp < sp.end && cp < comment.end; cp++) {
+    //             *outp++ = (char) *cp;
+    //             *outsz -= 1;
+    //         }
+    //         srcp = comment.end;
+    //     } else if (b == '"' || b == '\'') {
+    //         Span literal = {srcp, srcp + 1};
+    //
+    //         for (; literal.end < sp.end; literal.end++) {
+    //             if (*literal.end == '\\') {
+    //                 ++literal.end;
+    //             } else if (*literal.end == *literal.ptr) {
+    //                 break;
+    //             }
+    //         }
+    //
+    //         for (byte *cp = literal.ptr; cp < sp.end && cp < literal.end; cp++) {
+    //             *outp++ = (char) *cp;
+    //             *outsz -= 1;
+    //         }
+    //         srcp = literal.end;
+    //     } else if (isalpha(b)) {
+    //         Span id = {srcp, srcp};
+    //         for ( ; srcp < sp.end && isalnum(*srcp) || *srcp == '_'; srcp++) {
+    //             id.end++;
+    //         }
+    //
+    //         Span *repl = (Span *) prep_define_get(def_table, id);
+    //
+    //         if (repl == NULL) {
+    //             for ( ; id.ptr < id.end; id.ptr++) {
+    //                 *outp++ = (char) *id.ptr;
+    //                 *outsz -= 1;
+    //             }
+    //         } else {
+    //             for (byte *bp = repl->ptr; bp < repl->end; bp++) {
+    //                 *outp++ = (char) *bp;
+    //                 *outsz -= 1;
+    //             }
+    //         }
+    //     } else {
+    //         *outp++ = (char) b;
+    //         *outsz -= 1;
+    //     }
+    // }
 
     return outp;
 }
@@ -500,7 +768,7 @@ static bool eval_expr(Span expr, DefineTable *def_table) {
             p++;
             tok.span.end = p;
             *tp++ = tok;
-        } else if (isalpha(*p)) {
+        } else if (isalpha(*p) || *p == '_') {
             struct prepToken tok = {PREP_IDENTIFIER_TOKEN, p, p};
             for ( ; isalnum(*p) || *p == '_' ; p++, tok.span.end++)
                 ;

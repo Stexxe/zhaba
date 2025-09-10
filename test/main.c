@@ -132,16 +132,6 @@ static void run_prep_tests(char *dir) {
         exit(EXIT_FAILURE);
     }
 
-    /**
-    *
-    #if defined __GNUC__ && defined __GNUC_MINOR__
-    # define __GNUC_PREREQ(maj, min) \
-    ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((maj) << 16) + (min))
-    #else
-    # define __GNUC_PREREQ(maj, min) 0
-    #endif
-    */
-
     struct dirent *ent;
     char *ext_include = path_joinm(dir, "external");
     while ((ent = readdir(dirp)) != NULL) {
