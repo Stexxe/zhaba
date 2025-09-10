@@ -171,6 +171,7 @@ void prep_search_paths_set(char **paths, size_t paths_size) {
 }
 
 static char *expand(Span sp, char *dirpath, DefineTable *def_table, char *out, int *outsz);
+static bool eval_expr(Span expr, DefineTable *def_table);
 
 byte *read_src(char *path, size_t *size) {
     FILE *f = fopen(path, "r");
@@ -353,6 +354,36 @@ static char *expand(Span sp, char *dirpath, DefineTable *def_table, char *out, i
                 if (srcp < sp.end && *srcp == '\n') srcp++;
 
                 prep_define_set(def_table, id, NULL);
+            } else if (spanstrcmp(directive, "if") == 0) {
+                for ( ; srcp < sp.end && isspace(*srcp); srcp++)
+                    ;
+
+                Span expr = {srcp, srcp};
+
+                for ( ; srcp < sp.end && *srcp != '\n'; srcp++) {
+                    expr.end++;
+                }
+
+                for ( ; srcp < sp.end && isspace(*srcp) && *srcp != '\n'; srcp++)
+                    ;
+
+                if (srcp < sp.end && *srcp == '\n') srcp++;
+                Span content = {srcp, srcp};
+
+                char *term = "#endif";
+                size_t termlen = strlen(term);
+                for ( ; content.end + termlen <= sp.end; content.end++) {
+                    if (spanstrcmp((Span){content.end, content.end + termlen}, term) == 0) {
+                        if (*(content.end-1) == '\n') content.end--;
+                        break;
+                    }
+                }
+
+                if (eval_expr(expr, def_table)) {
+                    outp = expand(content, dirpath, def_table, outp, outsz);
+                }
+
+                srcp = content.end + termlen + (*content.end == '\n' ? 1 : 0);
             } else {
                 fprintf(stderr, "expand: unrecognized directive ");
                 for (byte *cp = directive.ptr; cp < directive.end; cp++) {
@@ -423,4 +454,112 @@ static char *expand(Span sp, char *dirpath, DefineTable *def_table, char *out, i
     }
 
     return outp;
+}
+
+enum tokenType {
+    PREP_UNKNOWN_TOKEN,
+    PREP_PLUS_TOKEN,
+    PREP_IDENTIFIER_TOKEN,
+    PREP_DEFINED_TOKEN,
+    PREP_OPEN_PAREN_TOKEN, PREP_CLOSE_PAREN_TOKEN
+};
+
+struct prepToken {
+    enum tokenType type;
+    Span span;
+};
+
+enum nodeType {
+    PREP_UNKNOWN_NODE,
+    PREP_NODE_DEFINED
+};
+
+struct prepNode {
+    enum nodeType type;
+    struct prepToken *start_token;
+    struct prepToken *end_token;
+};
+
+struct definedNode {
+    struct prepNode header;
+    struct prepToken *id;
+};
+
+static struct prepToken tokens[128];
+
+static bool eval_expr(Span expr, DefineTable *def_table) {
+    byte *p;
+    struct prepToken *tp = tokens;
+
+    for (p = expr.ptr; p < expr.end;) {
+        if (*p == '+') {
+            *tp++ = (struct prepToken) {PREP_PLUS_TOKEN, p, p + 1};
+        } else if (isalpha(*p)) {
+            struct prepToken tok = {PREP_IDENTIFIER_TOKEN, p, p};
+            for ( ; isalnum(*p) || *p == '_' ; p++, tok.span.end++)
+                ;
+
+            if (spanstrcmp(tok.span, "DEFINED") == 0 || spanstrcmp(tok.span, "defined") == 0) tok.type = PREP_DEFINED_TOKEN;
+
+            *tp++ = tok;
+        } else if (isspace(*p)) {
+            p++;
+        } else {
+            assert(0);
+        }
+    }
+
+    struct prepToken *end_token = tp;
+    struct prepToken *binop = NULL;
+    for (struct prepToken *t = tokens; t < end_token; t++) {
+        if (t->type == PREP_PLUS_TOKEN) { // Any binary op token
+            binop = t;
+            break;
+        }
+    }
+
+    struct prepNode *root_node = NULL;
+
+    if (binop == NULL) {
+        struct prepToken *t = tokens;
+        struct prepNode *node;
+        switch (t->type) {
+            case PREP_DEFINED_TOKEN: {
+                struct definedNode *n = pool_alloc_struct(struct definedNode);
+                n->header = (struct prepNode) {PREP_NODE_DEFINED, t};
+                if (t->type == PREP_OPEN_PAREN_TOKEN) t++;
+                t++;
+                assert(t->type == PREP_IDENTIFIER_TOKEN);
+                n->id = t;
+                t++;
+                if (t->type == PREP_CLOSE_PAREN_TOKEN) t++;
+
+                n->header.end_token = t;
+                node = (struct prepNode *) n;
+            } break;
+            default: {
+                assert(0);
+            } break;
+        }
+
+        if (root_node == NULL) root_node = node;
+    } else {
+        // TODO: Handle binary op
+    }
+
+    bool res = false;
+
+    if (root_node) {
+        switch (root_node->type) {
+            case PREP_NODE_DEFINED: {
+                struct definedNode *n = (struct definedNode *) root_node;
+                res = prep_define_get(def_table, n->id->span) != NULL;
+            } break;
+            default: {
+                assert(0);
+            } break;
+        }
+    }
+
+    return res;
 }
