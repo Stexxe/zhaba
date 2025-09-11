@@ -2,5 +2,5 @@
 void func(char *fmt, ...);
 
 int main() {
-    func("%d", (3 + 4));
+    func("%d", (3 +      4));
 }
